@@ -41,7 +41,7 @@ while ret:
     ret, frame = cap.read()
 
     if ret:	
-        results = model.track(frame, persist=True)
+        results = model.track(frame, persist=True, classes=0)#classes=0 for person
         frame_ = results[0].plot()
         video.write(frame_)
         if cv2.waitKey(25) & 0xFF == ord('q'):
