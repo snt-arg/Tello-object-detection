@@ -2,9 +2,9 @@
 # 👋 Object detection using YOLOv8
 
 For my Bachelor Semester Project 2, I chose to focus on object detection, by leveraging on YOLOv8, 
-a popular framework for object detection, object classification and more developed by [Ultralytics](https://github.com/ultralytics).
+a popular framework for object detection, object classification and more, developed by [Ultralytics](https://github.com/ultralytics).
 
-The 
+GitHub repository for YOLOv8 : (https://github.com/ultralytics/ultralytics)
 
 ## 🔍 Table Of Contents
 
