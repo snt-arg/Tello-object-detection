@@ -6,6 +6,10 @@ a popular framework for object detection, object classification and more, develo
 
 GitHub repository for YOLOv8 : (https://github.com/ultralytics/ultralytics)
 
+The project is divised into two parts:
+* Object detection Python application
+* Implementation on a robot using [ROS](https://www.ros.org/)
+
 ## 🔍 Table Of Contents
 
 - [🛠️ Installation](#installation)
