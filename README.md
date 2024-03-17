@@ -13,13 +13,16 @@ The project is divised into two parts:
 
 - [🛠 Installation](#installation)
   - [🖇️🔧 Dependencies](#dependencies)
-- 
+- [👨🏻‍💻📝Implementation](#implementation)
+  -[🐍👩🏻‍💻Python application](#application)
+  -[🤖ROS (Robot Operating System)](#ROS) 
 - [🧾 License](#license)
 
 ## 🛠️ Installation <a id="installation"></a>
-
 ### 🖇️🔧 Dependencies <a id="dependencies"></a>
-
+## 👨🏻‍💻📝 Implementation <a id="implementation"></a>
+## 🐍👩🏻‍💻 Python application <a id="application"></a>
+## 🤖 ROS (Robot Operating System) <a id="ROS"></a>
 ## 🧾 License <a id="license"></a>
 
 
