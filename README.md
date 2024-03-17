@@ -13,6 +13,7 @@ The project is divised into two parts:
 
 - [🛠 Installation](#installation)
   - [🖇️🔧 Dependencies](#dependencies)
+- 
 - [🧾 License](#license)
 
 ## 🛠️ Installation <a id="installation"></a>
