@@ -21,8 +21,8 @@ The project is divised into two parts:
 ## 🛠️ Installation <a id="installation"></a>
 ### 🖇️🔧 Dependencies <a id="dependencies"></a>
 ## 👨🏻‍💻📝 Implementation <a id="implementation"></a>
-## 🐍👩🏻‍💻 Python application <a id="application"></a>
-## 🤖 ROS (Robot Operating System) <a id="ROS"></a>
+### 🐍👩🏻‍💻 Python application <a id="application"></a>
+### 🤖 ROS (Robot Operating System) <a id="ROS"></a>
 ## 🧾 License <a id="license"></a>
 
 
