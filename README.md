@@ -14,8 +14,8 @@ The project is divised into two parts:
 - [🛠 Installation](#installation)
   - [🖇️🔧 Dependencies](#dependencies)
 - [👨🏻‍💻📝Implementation](#implementation)
-  -[🐍👩🏻‍💻Python application](#application)
-  -[🤖ROS (Robot Operating System)](#ROS) 
+  - [🐍👩🏻‍💻Python application](#application)
+  - [🤖ROS (Robot Operating System)](#ROS) 
 - [🧾 License](#license)
 
 ## 🛠️ Installation <a id="installation"></a>
