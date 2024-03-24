@@ -37,7 +37,7 @@ To run this project on your side, follow these steps:
   ```
   However, we recommend that you install all the packages in the requirement file to avoid errors.\
     Please note that to run a code that uses YOLOv8, you should possess a Python version >=3.8, and PyTorch >= 1.8.\
-    [For more informations on how to install YOLOv8](https://github.com/ultralytics/ultralytics?tab=readme-ov-file#documentation)
+    [For more information on how to install YOLOv8](https://github.com/ultralytics/ultralytics?tab=readme-ov-file#documentation)
 - Run the file [filter_class.py](https://github.com/maeri18/YOLOV8-BSP2/blob/main/object_detection/filter_class.py) on one of your video to check if everything works fine.
 
 ## 👨🏻‍💻📝 Implementation <a id="implementation"></a>
