@@ -30,7 +30,7 @@ To run this project on your side, follow these steps:
   pip install -r requirements.txt
   ```
 - Install YOLOv8 :\
-    The YOLOv8 package should be installed if you installed all packages in [requirements.txt](https://github.com/maeri18/YOLOV8-BSP2/blob/main/requirements.txt).\
+    YOLOv8 should be installed if you installed all packages in [requirements.txt](https://github.com/maeri18/YOLOV8-BSP2/blob/main/requirements.txt).\
   If not, you can run
   ```sh
   pip install ultralytics
