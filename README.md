@@ -19,9 +19,16 @@ The project is divised into two parts:
 - [🧾 License](#license)
 
 ## 🛠️ Installation <a id="installation"></a>
+To run this project on your side, follow these steps:
+- install YOLOv8 :
+  * Run the command : pip install ultralytics
+    Please note that to install the package, you should possess a Python version >=3.8, and PyTorch >= 1.8
+    [For more informations on how to install YOLOv8](https://github.com/ultralytics/ultralytics?tab=readme-ov-file#documentation)
+- 
 ### 🖇️🔧 Dependencies <a id="dependencies"></a>
 ## 👨🏻‍💻📝 Implementation <a id="implementation"></a>
 ### 🐍👩🏻‍💻 Python application <a id="application"></a>
+The python application
 ### 🤖 ROS (Robot Operating System) <a id="ROS"></a>
 ## 🧾 License <a id="license"></a>
 
