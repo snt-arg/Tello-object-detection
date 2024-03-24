@@ -20,10 +20,16 @@ The project is divised into two parts:
 
 ## 🛠️ Installation <a id="installation"></a>
 To run this project on your side, follow these steps:
-- install YOLOv8 :
+- Clone this repository
+  By using the command : **git clone https://github.com/maeri18/YOLOV8-BSP2.git**
+- Install the requirements specified in requirements.txt
+  If you possess, [pip](https://pypi.org/project/pip/), you can run the command  **pip install -r requirements.txt**
+- Install YOLOv8 :
+  
   * Run the command : pip install ultralytics
-    Please note that to install the package, you should possess a Python version >=3.8, and PyTorch >= 1.8
+    Please note that to install the package, you should possess a Python version >=3.8, and PyTorch >= 1.8.
     [For more informations on how to install YOLOv8](https://github.com/ultralytics/ultralytics?tab=readme-ov-file#documentation)
+  *
 - 
 ### 🖇️🔧 Dependencies <a id="dependencies"></a>
 ## 👨🏻‍💻📝 Implementation <a id="implementation"></a>
