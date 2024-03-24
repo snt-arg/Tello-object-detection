@@ -29,6 +29,7 @@ To run this project on your side, follow these steps:
   ```sh
   pip install -r requirements.txt
   ```
+  Even if you do not want to install the packages by using this file, we still recommend you to have a look on the versions of the packages we used, in order to avoid incompatibility errors.
 - Install YOLOv8 :\
     YOLOv8 should be installed if you installed all packages in [requirements.txt](https://github.com/maeri18/YOLOV8-BSP2/blob/main/requirements.txt).\
   If not, you can run
