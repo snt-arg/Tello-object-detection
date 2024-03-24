@@ -12,7 +12,6 @@ The project is divised into two parts:
 ## 🔍 Table Of Contents
 
 - [🛠 Installation](#installation)
-  - [🖇️🔧 Dependencies](#dependencies)
 - [👨🏻‍💻📝Implementation](#implementation)
   - [🐍👩🏻‍💻Python application](#application)
   - [🤖ROS (Robot Operating System)](#ROS) 
@@ -36,7 +35,6 @@ To run this project on your side, follow these steps:
     Please note that to install the package, you should possess a Python version >=3.8, and PyTorch >= 1.8.
     [For more informations on how to install YOLOv8](https://github.com/ultralytics/ultralytics?tab=readme-ov-file#documentation)
 - Run the file [filter_class.py](https://github.com/maeri18/YOLOV8-BSP2/blob/main/object_detection/filter_class.py) on one of your video to check if everything works fine.
-### 🖇️🔧 Dependencies <a id="dependencies"></a>
 
 ## 👨🏻‍💻📝 Implementation <a id="implementation"></a>
 ### 🐍👩🏻‍💻 Python application <a id="application"></a>
