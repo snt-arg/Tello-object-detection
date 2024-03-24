@@ -19,25 +19,24 @@ The project is divised into two parts:
 
 ## 🛠️ Installation <a id="installation"></a>
 To run this project on your side, follow these steps:
-- Clone this repository
-  by using the command :
+- Clone this repository\
   ```sh
   git clone https://github.com/maeri18/YOLOV8-BSP2.git
   ```
   You need to have [git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git) installed
-- Install the requirements specified in [requirements.txt](https://github.com/maeri18/YOLOV8-BSP2/blob/main/requirements.txt)
+- Install the requirements specified in [requirements.txt](https://github.com/maeri18/YOLOV8-BSP2/blob/main/requirements.txt)\
   If you possess, [pip](https://pypi.org/project/pip/), you can run the command
   ```sh
   pip install -r requirements.txt
   ```
-- Install YOLOv8 :
+- Install YOLOv8 :\
     The YOLOv8 package should be installed if you installed all packages in [requirements.txt](https://github.com/maeri18/YOLOV8-BSP2/blob/main/requirements.txt).\
   If not, you can run
   ```sh
   pip install ultralytics
   ```
   However, we recommend that you install all the packages in the requirement file to avoid errors.\
-    Please note that to run a code that uses YOLOv8, you should possess a Python version >=3.8, and PyTorch >= 1.8.
+    Please note that to run a code that uses YOLOv8, you should possess a Python version >=3.8, and PyTorch >= 1.8.\
     [For more informations on how to install YOLOv8](https://github.com/ultralytics/ultralytics?tab=readme-ov-file#documentation)
 - Run the file [filter_class.py](https://github.com/maeri18/YOLOV8-BSP2/blob/main/object_detection/filter_class.py) on one of your video to check if everything works fine.
 
