@@ -19,7 +19,7 @@ The project is divised into two parts:
 
 ## 🛠️ Installation <a id="installation"></a>
 To run this project on your side, follow these steps:
-- Clone this repository\
+- Clone this repository
   ```sh
   git clone https://github.com/maeri18/YOLOV8-BSP2.git
   ```
