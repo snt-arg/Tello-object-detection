@@ -1,18 +1,18 @@
-click                     8.1.7                    
-oauthlib                  3.2.2                    
-opencv-python             4.9.0.80                 
-pillow                    9.0.0                    
-pip                       23.3             
-python                    3.8.18           
-python-dateutil           2.9.0.post0      
-tensorboard               2.13.0           
-tensorboard-data-server   0.7.2            
-tensorflow                2.13.1           
-tensorflow-estimator      2.13.0           
-tensorflow-io-gcs-filesystem 0.34.0        
-tk                        8.6.12           
-torch                     2.1.1            
-torchaudio                2.1.1            
-torchvision               0.16.1           
-ultralytics               8.1.20           
+click==8.1.7                    
+oauthlib==3.2.2                    
+opencv-python==4.9.0.80                 
+pillow==9.0.0                    
+pip==23.3             
+python==3.8.18           
+python-dateutil==2.9.0.post0      
+tensorboard==2.13.0           
+tensorboard-data-server==0.7.2            
+tensorflow==2.13.1           
+tensorflow-estimator==2.13.0           
+tensorflow-io-gcs-filesystem==0.34.0        
+tk==8.6.12           
+torch==2.1.1            
+torchaudio==2.1.1            
+torchvision==0.16.1           
+ultralytics==8.1.20           
 
