@@ -1,3 +1,8 @@
+#minimal probability to validate a detection
 minimum_prob: 0.4
+
+#path to the video we want to detect objects in
 video_path: ./skate_true.mp4
+
+#path to the video obtained after detecting objects.
 video_detected: ./skate_detected_only_person_and_cars.mp4 
