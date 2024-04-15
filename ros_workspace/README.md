@@ -1,1 +1,1 @@
-THIS IS THE TELLO ROS WORKSPACE I USED TO WRAP THE OBJECT DETECTION MODULE 
+This is the tello package I used to wrap the object detection module
