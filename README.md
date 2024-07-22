@@ -41,10 +41,6 @@ To run this project on your side, follow these steps:
     [For more information on how to install YOLOv8](https://github.com/ultralytics/ultralytics?tab=readme-ov-file#documentation)
 - Run the file [filter_class.py](https://github.com/maeri18/YOLOV8-BSP2/blob/main/object_detection/filter_class.py) on one of your video to check if everything works fine.
 
-## 👨🏻‍💻📝 Implementation <a id="implementation"></a>
-### 🐍👩🏻‍💻 Python application <a id="application"></a>
-The python application
-### 🤖 ROS (Robot Operating System) <a id="ROS"></a>
 ## 🧾 License <a id="license"></a>
 
 
