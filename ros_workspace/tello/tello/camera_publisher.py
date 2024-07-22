@@ -44,7 +44,7 @@ class ImagePublisher(Node):
     def timer_callback(self):
         """Callback function to publish a frame received from the drone. It notifies that the frame has been published."""
         frame = self.cap.frame
-        self.publisher_.publish(self.cv_bridge.cv2_to_imgmsg(frame,'bgr8'))  
+        self.publisher_.publish(self.cv_bridge.cv2_to_imgmsg(frame,'rgb8'))  
         self.get_logger().info('Publishing frame %d'%self.i)
         self.i +=1
 
