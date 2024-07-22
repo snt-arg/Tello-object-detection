@@ -21,7 +21,7 @@ The project is divised into two parts:
 To run this project on your side, follow these steps:
 - Clone this repository
   ```sh
-  git clone https://github.com/maeri18/YOLOV8-BSP2.git
+  git clone https://github.com/snt-arg/Tello-object-detection.git
   ```
   You need to have [git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git) installed
 - Install the requirements specified in [requirements.txt](https://github.com/maeri18/YOLOV8-BSP2/blob/main/requirements.txt)\
