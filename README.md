@@ -12,9 +12,6 @@ The project is divised into two parts:
 ## 🔍 Table Of Contents
 
 - [🛠 Installation](#installation)
-- [👨🏻‍💻📝Implementation](#implementation)
-  - [🐍👩🏻‍💻Python application](#application)
-  - [🤖ROS (Robot Operating System)](#ROS) 
 - [🧾 License](#license)
 
 ## 🛠️ Installation <a id="installation"></a>
