@@ -20,10 +20,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-                'talker = tello.publisher_member_function:main',
-                'listener = tello.subscriber_member_function:main',
 		'camera_pub = tello.camera_publisher:main',
-		'camera_sub = tello.camera_subscriber:main',
 		'detected_pub = tello.sub1:main',
 		
         ],
