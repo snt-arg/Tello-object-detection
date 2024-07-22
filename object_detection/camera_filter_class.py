@@ -46,7 +46,7 @@ def filter_detection(classes_needed):
     cv2_fourcc = cv2.VideoWriter_fourcc(*'mp4v')
 
 #creating a VideoWriter object to contain the output video where objects have been detetcted
-    video = cv2.VideoWriter('./me_probably.mp4',cv2_fourcc,fps,(width,height))
+    video = cv2.VideoWriter('./output.mp4',cv2_fourcc,fps,(width,height))
 
 #while loop to read each frame of the input video, detect objects, and write back the new frame in the output video
     while ret:
