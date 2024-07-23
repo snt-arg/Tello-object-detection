@@ -19,31 +19,47 @@ The project is divised into two parts:
 - [🧾 License](#license)
 
 ## 🛠️ Installation <a id="installation"></a>
-To run this project on your side, follow these steps:
+We strongly advise running this project on [Ubuntu 22.04](https://ubuntu.com/tutorials/install-ubuntu-desktop#1-overview) to ensure compatibility with the ROS distribution we used.
+Also, make sure that the system used allows for connection to the drone (We encountered problems while trying to connect the drone to [WSL](https://learn.microsoft.com/en-us/windows/wsl/about).)
+
+To settle the environment to run this project on your side, you must:
 - Clone this repository
   ```sh
   git clone https://github.com/snt-arg/Tello-object-detection.git
   ```
-  You need to have [git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git) installed
+  You need to have [git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git) installed.
+  
 - Install the requirements specified in [requirements.txt](https://github.com/maeri18/YOLOV8-BSP2/blob/main/requirements.txt)\
   If you possess, [pip](https://pypi.org/project/pip/), you can run the command
   ```sh
   pip install -r requirements.txt
-  ```
-  Even if you do not want to install the packages by using this file, we still recommend you to have a look on the versions of the packages we used, in order to avoid incompatibility errors.
+  ``` 
+  Even if you do not want to install the packages by using this file, we still recommend you to have a look on the versions of the packages we used,to avoid incompatibility errors.
 - Install YOLOv8 :\
-    YOLOv8 should be installed if you installed all packages in [requirements.txt](https://github.com/maeri18/YOLOV8-BSP2/blob/main/requirements.txt).\
+    YOLOv8 should be installed if you installed all packages in [requirements.txt](https://github.com/snt-arg/Tello-object-detection/blob/main/requirements.txt).\
   If not, you can run
   ```sh
   pip install ultralytics
   ```
   However, we recommend that you install all the packages in the requirement file to avoid errors.\
     Please note that to run a code that uses YOLOv8, you should possess a Python version >=3.8, and PyTorch >= 1.8.\
-    [For more information on how to install YOLOv8](https://github.com/ultralytics/ultralytics?tab=readme-ov-file#documentation)
-- Run the file [filter_class.py](https://github.com/maeri18/YOLOV8-BSP2/blob/main/object_detection/filter_class.py) on one of your video to check if everything works fine.
+    [For more information on how to install YOLOv8](https://github.com/ultralytics/ultralytics?tab=readme-ov-file#documentation).
+  
+- Install ROS 2:\
+  For this project, we used ROS 2 Humble Hawksbill. The platforms supported are Ubuntu 22.04, RHEL-8, Windows 10 and macOS(building from source).
+  To install on Ubuntu 22.04 from binary packages(recommended), follow [this tutorial](https://docs.ros.org/en/humble/Installation/Ubuntu-Install-Debians.html).
+  For the other platforms, more information is found [here](https://docs.ros.org/en/humble/Installation.html).
+
 ## 🧑‍💻️🏃 Run code
+This repository is organized in 4 repertories:
+- *config* where all configuration files are kept
+- *media* containing some videos on which we ran our object detection module to test its functionning.
+- *object_detection*
+  
+- Run the file [filter_class.py](https://github.com/maeri18/YOLOV8-BSP2/blob/main/object_detection/filter_class.py) on one of your video to check if everything works fine.
 ## 👨🏻‍💻📝Implementation <a id="implementation></a>
   ### 🐍👩🏻‍💻Python application <a id="application"></a>
+  
   ### 🤖ROS (Robot Operating System) <a id="ROS"></a> 
 ## 🧾 License <a id="license"></a>
 
