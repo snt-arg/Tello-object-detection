@@ -54,9 +54,28 @@ To settle the environment to run this project on your side, you must:
 This repository is organized in 4 repertories:
 - *config* where all configuration files are kept
 - *media* containing some videos on which we ran our object detection module to test its functionning.
-- *object_detection*
-  
-- Run the file [filter_class.py](https://github.com/maeri18/YOLOV8-BSP2/blob/main/object_detection/filter_class.py) on one of your video to check if everything works fine.
+- *object_detection* contains several python scripts to perform object detection from a video or the camera.
+  You can run the file [filter_class.py](https://github.com/snt-arg/Tello-object-detection/blob/main/object_detection/filter_class.py) on one of your videos and you should have the output video (output.mp4) in the same directory.
+  To do so, you can specify in the last line of code (where the filter_detection function is called) the classes of objects you are interested in, and the path to your video.
+- *ros_workspace* contains robotic package (tello) we implemented to perform object detection with a DJI Tello drone.
+  To run the *tello* package, you have to follow fulfill all installation requirements listed above.
+  Then in a terminal,
+  - Move to the ros_workspace directory after cloning the repository
+  - Source your ROS distribution using
+  - Build the tello package
+  - Make sure you are connected to the drone
+  - Open three other terminals and source the ROS distribution and the Tello package in all of them
+      * In the first one, run the drone's camera publisher node using
+        ```sh
+        ros2 run tello camera_pub
+        ```
+      * In the second one, run the object detection subscriber and republisher node using
+        ```sh
+        ros2 run tello detected_pub
+        ```
+      * In the third terminal, you can use visualization tools such as rqt_image_view to view the image messages published on each topic (*image_raw* for raw images coming from the drone, and *image_detected* for images on which object detection was performed. )
+    
+
 ## 👨🏻‍💻📝Implementation <a id="implementation></a>
   ### 🐍👩🏻‍💻Python application <a id="application"></a>
   
