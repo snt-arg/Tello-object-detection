@@ -41,8 +41,8 @@ def filter_detection(classes_needed, video_path):
 #encoding format of the output video. Here, mp4
     cv2_fourcc = cv2.VideoWriter_fourcc(*'mp4v')
 
-#creating a VideoWriter object to contain the output video where objects have been detetcted
-    video = cv2.VideoWriter('./skate_detected_only_person_and_cars.mp4',cv2_fourcc,fps,(width,height))
+#creating a VideoWriter object to contain the output video where objects have been detected
+    video = cv2.VideoWriter('./output.mp4',cv2_fourcc,fps,(width,height))
 
 #while loop to read each frame of the input video, detect objects, and write back the new frame in the output video
     while ret:
