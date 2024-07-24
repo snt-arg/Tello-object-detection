@@ -14,8 +14,6 @@ The project is divised into two parts:
 - [🛠 Installation](#installation)
 - [🧑‍💻️🏃 Run code](#run)
 - [👨🏻‍💻📝Implementation](#implementation)
-  - [🐍👩🏻‍💻Python application](#application)
-  - [🤖ROS (Robot Operating System)](#ROS) 
 - [🧾 License](#license)
 
 ## 🛠️ Installation <a id="installation"></a>
@@ -76,10 +74,11 @@ This repository is organized in 4 repertories:
       * In the third terminal, you can use visualization tools such as rqt_image_view to view the image messages published on each topic (*image_raw* for raw images coming from the drone, and *image_detected* for images on which object detection was performed. )
     
 
-## 👨🏻‍💻📝Implementation <a id="implementation></a>
-  ### 🐍👩🏻‍💻Python application <a id="application"></a>
-  
-  ### 🤖ROS (Robot Operating System) <a id="ROS"></a> 
+## 👨🏻‍💻📝Implementation <a id="implementation"></a>
+This project uses a publisher/subscriber architecture to perform object detection on a drone's camera video.
+The publisher node [camera_publisher.py](https://github.com/snt-arg/Tello-object-detection/blob/main/ros_workspace/tello/tello/camera_publisher.py) is in charge of connecting to the drone (using [DJITelloPy](https://github.com/damiafuentes/DJITelloPy)), and reading video frames from the drone's camera.
+These frames are then published on a topic name *image_raw*.
+The subscriber node [sub1.py](https://github.com/snt-arg/Tello-object-detection/blob/main/ros_workspace/tello/tello/sub1.py) receives frames published on *image_raw*, performs object detection on them, and republishes the new frames (with bounding boxes around objects) on *image_detected*.
 ## 🧾 License <a id="license"></a>
 
 
