@@ -62,6 +62,8 @@ class TriggerTracking(Node):
         self.sub_bounding_boxes = self.create_subscription(AllBoundingBoxes,self.bounding_boxes_topic, self.bounding_boxes_listener_callback,10)
         self.sub_landmark = self.create_subscription(Landmarks,self.hand_landmarks_topic, self.landmarks_listener_callback,10)
         
+        self.test_sub = self.create_subscription(Image,"/all_detected",self.test_listener,10)
+
         #publishers
         self.publisher_to_track= self.create_publisher(PersonTracked,self.person_tracked_topic,10)
         self.timer_1 = self.create_timer(0.1, self.person_tracked_callback)
@@ -71,13 +73,6 @@ class TriggerTracking(Node):
 
         #Variable to received bounding boxes containing all persons detected
         self.boxes = None
-
-        #self.height = None
-
-        #self.width = None
-        
-        #Variable to contain only the image of target person 
-        #self.image_target = None
 
         #Variable to contain landmarks messages
         self.landmarks = None
@@ -89,12 +84,21 @@ class TriggerTracking(Node):
         self.person_tracked_right_hand_point = None
 
         self.person_tracked_msg = PersonTracked()
-        #This variable is False if no one did the trigger move, and is True if someone did
-        self.triggered = False
+         
+        self.image_height = None
+
+        self.image_width = None
 
         self.fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        self.video = cv2.VideoWriter('/media/maeri/UBUNTUUU/output670.mp4',self.fourcc,20.0,(640,480))
+        self.video = cv2.VideoWriter('/media/maeri/UBUNTUUU/output1118.mp4',self.fourcc,20.0,(640,480))
 
+################################ test subscriber #####################################################################################
+    def test_listener(self,frame_msg):
+        """To delete , just a test listener callback to verify the midpoint is really the midpoint"""
+        frame = self.cv_bridge.imgmsg_to_cv2(frame_msg,'bgr8')
+        self.image_height, self.image_width, _ = frame.shape
+        if self.person_tracked_middlepoint is not None:
+            self.video.write(cv2.circle(frame,(int(self.person_tracked_msg.middle_point.x),int(self.person_tracked_msg.middle_point.y)),10,(255,0,0),-1))
 
 ###########################first subscriber###########################################################################################   
     def bounding_boxes_listener_callback(self, boxes_msg):
@@ -104,7 +108,6 @@ class TriggerTracking(Node):
         
         self.get_logger().info('Bounding boxes received')
         self.boxes = boxes_msg
-        
         
         
 ########################### second subscriber #########################################################################################
@@ -133,8 +136,8 @@ class TriggerTracking(Node):
                 
                 self.person_tracked_middlepoint = PointMsg()
 
-                print("\n Beware",self.person_tracked_left_hand_point)
-                print(self.person_tracked_right_hand_point,"\n\n")
+                #print("\n Beware",self.person_tracked_left_hand_point)
+                #print(self.person_tracked_right_hand_point,"\n\n")
 
                 if self.boxes is None:
                     self.get_logger().info("No bounding box received")
@@ -142,21 +145,25 @@ class TriggerTracking(Node):
                     print("Bounding boxes",self.boxes.bounding_boxes,"\n\n")
                 #self.video.write(cv2.line(self.image_all_detected,(int(middle_left.x*self.width),int(middle_left.y*self.height)),(int(middle_right.x*self.width),int(middle_right.y*self.height)),(255,0,0),4))
                 self.find_bounding_box_of_tracked_person(self.person_tracked_left_hand_point,self.person_tracked_right_hand_point,self.boxes)
-
-                self.person_tracked_msg.middle_point = self.person_tracked_middlepoint
+                
+                self.person_tracked_msg.middle_point = self.denormalize()
                 
                 if self.person_tracked_middlepoint is not None:
                     self.publisher_to_track.publish(self.person_tracked_msg) 
 
         elif self.person_tracked_middlepoint is not None:
             self.find_bounding_box_middlepoint()
-            self.person_tracked_msg.middle_point = self.person_tracked_middlepoint
+            self.person_tracked_msg.middle_point = self.denormalize()
             self.publisher_to_track.publish(self.person_tracked_msg) 
             print("\nNow we know the person to track. midpoint is ", self.person_tracked_middlepoint,"\n")
 
     
-    #def update_person_tracked_msg(self,middlepoint):
-        """function to update the message containing  """
+    def denormalize(self)->PointMsg():
+        """Function to denormalize the corrdinates of the midpoint"""
+        result = PointMsg()
+        result.x = self.person_tracked_middlepoint.x * self.image_width
+        result.y = self.person_tracked_middlepoint.y * self.image_height
+        return result
 
     def find_bounding_box_of_tracked_person(self, left_hand, right_hand, boxes):
         """Finds the bounding box around the person who did the triggering move"""
@@ -177,8 +184,8 @@ class TriggerTracking(Node):
                         if bottom_right_y >= left_hand_y and bottom_right_y >= right_hand_y:
                             self.person_tracked_middlepoint.x = top_left_x/ 2 + bottom_right_x/2 
                             self.person_tracked_middlepoint.y = top_left_y/2 + bottom_right_y/2
-        print("No bounding box found")
-        return None
+        #print("No bounding box found")
+        #return None
     
     def find_bounding_box_middlepoint(self):
         """Find the nearest bounding box containing the middlepoint and upadates the middlepoint"""
