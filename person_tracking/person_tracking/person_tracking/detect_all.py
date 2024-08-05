@@ -61,6 +61,9 @@ class DetectAll(PluginBase):
         #Variable containing all bounding boxes coordinates for a single frame
         self.boxes = AllBoundingBoxes()
 
+        #Counter for frames received.
+        self.frame_counter = 0 
+
 
 
 
@@ -71,8 +74,9 @@ class DetectAll(PluginBase):
         Then convert that image into cv2 format, perform tracking on that image"""
         
         #print("Received nothing")
-        self.get_logger().info('I saw an image')
-        self.image_raw = self.cv_bridge.imgmsg_to_cv2(img,'rgb8')
+        self.get_logger().info(f"Frame N°{self.frame_counter} received")
+        self.frame_counter += 1
+        self.image_raw = self.cv_bridge.imgmsg_to_cv2(img,"rgb8")
         self.image_all_detected = self.detection(self.image_raw)
         
 
