@@ -9,7 +9,7 @@ from sensor_msgs.msg import Image
 from hand_gestures_msgs.msg import Landmarks, Landmark
 
 #person tracked messages
-from person_tracked.msg import PersonTracked
+from person_tracked.msg import PersonTracked, PointMsg
 
 #bounding boxes messages
 from all_bounding_boxes_msg.msg import AllBoundingBoxes
@@ -88,6 +88,10 @@ class TriggerTracking(Node):
 
         self.person_tracked_right_hand_point = None
 
+        self.person_tracked_msg = PersonTracked()
+        #This variable is False if no one did the trigger move, and is True if someone did
+        self.triggered = False
+
         self.fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         self.video = cv2.VideoWriter('/media/maeri/UBUNTUUU/output670.mp4',self.fourcc,20.0,(640,480))
 
@@ -100,8 +104,7 @@ class TriggerTracking(Node):
         
         self.get_logger().info('Bounding boxes received')
         self.boxes = boxes_msg
-        print
-       
+        
         
         
 ########################### second subscriber #########################################################################################
@@ -120,18 +123,91 @@ class TriggerTracking(Node):
         """This function listens to the /hand/landmarks topic, and waits to spot the person who did the triggering move. I
         n case a person did the trigger move, the function calls a publish the frames with only that person tracked. It sends the coordinates of the 
         center of the bounding boxes around that person to person_tracker node, so that the latter node sends commands to the drone to follow that person."""
-        #self.publisher_all_detected.publish(self.cv_bridge.cv2_to_imgmsg(np.array(self.image_all_detected), 'rgb8')) 
+
         if self.person_tracked_middlepoint is None and self.landmarks is not None :
             if self.landmarks.right_hand.gesture == self.right_hand_gesture and self.landmarks.left_hand.gesture == self.left_hand_gesture:
-                print("\n Open hand!! ")
+                self.get_logger().info("\n Open hand!! ")
+
                 self.person_tracked_left_hand_point = self.landmarks.left_hand.normalized_landmarks[0]
                 self.person_tracked_right_hand_point = self.landmarks.right_hand.normalized_landmarks[0]
+                
+                self.person_tracked_middlepoint = PointMsg()
+
                 print("\n Beware",self.person_tracked_left_hand_point)
                 print(self.person_tracked_right_hand_point,"\n\n")
-                print("Bounding boxes",self.boxes.bounding_boxes,"\n\n")
+
+                if self.boxes is None:
+                    self.get_logger().info("No bounding box received")
+                else:
+                    print("Bounding boxes",self.boxes.bounding_boxes,"\n\n")
                 #self.video.write(cv2.line(self.image_all_detected,(int(middle_left.x*self.width),int(middle_left.y*self.height)),(int(middle_right.x*self.width),int(middle_right.y*self.height)),(255,0,0),4))
-            
+                self.find_bounding_box_of_tracked_person(self.person_tracked_left_hand_point,self.person_tracked_right_hand_point,self.boxes)
+
+                self.person_tracked_msg.middle_point = self.person_tracked_middlepoint
+                
+                if self.person_tracked_middlepoint is not None:
+                    self.publisher_to_track.publish(self.person_tracked_msg) 
+
+        elif self.person_tracked_middlepoint is not None:
+            self.find_bounding_box_middlepoint()
+            self.person_tracked_msg.middle_point = self.person_tracked_middlepoint
+            self.publisher_to_track.publish(self.person_tracked_msg) 
+            print("\nNow we know the person to track. midpoint is ", self.person_tracked_middlepoint,"\n")
+
     
+    #def update_person_tracked_msg(self,middlepoint):
+        """function to update the message containing  """
+
+    def find_bounding_box_of_tracked_person(self, left_hand, right_hand, boxes):
+        """Finds the bounding box around the person who did the triggering move"""
+        for box in boxes.bounding_boxes:
+            top_left_x = box.top_left.x
+            top_left_y = box.top_left.y
+            bottom_right_x = box.bottom_right.x
+            bottom_right_y = box.bottom_right.y
+
+            left_hand_x = left_hand.x
+            left_hand_y = left_hand.y
+            right_hand_x = right_hand.x
+            right_hand_y = right_hand.y
+
+            if top_left_x <= left_hand_x and top_left_x <= right_hand_x:
+                if bottom_right_x >= left_hand_x and bottom_right_x >= right_hand_x:
+                    if top_left_y <= left_hand_y and top_left_y <= right_hand_y:
+                        if bottom_right_y >= left_hand_y and bottom_right_y >= right_hand_y:
+                            self.person_tracked_middlepoint.x = top_left_x/ 2 + bottom_right_x/2 
+                            self.person_tracked_middlepoint.y = top_left_y/2 + bottom_right_y/2
+        print("No bounding box found")
+        return None
+    
+    def find_bounding_box_middlepoint(self):
+        """Find the nearest bounding box containing the middlepoint and upadates the middlepoint"""
+        smallest_error_margin = -1
+        for box in self.boxes.bounding_boxes:
+            top_left_x = box.top_left.x
+            top_left_y = box.top_left.y
+            bottom_right_x = box.bottom_right.x
+            bottom_right_y = box.bottom_right.y
+
+            midpoint_x = self.person_tracked_middlepoint.x
+            midpoint_y = self.person_tracked_middlepoint.y
+
+            if top_left_x <= midpoint_x and top_left_y <= midpoint_y and bottom_right_x >= midpoint_x and bottom_right_y >= midpoint_y:
+                new_midpoint_x = top_left_x/ 2 + bottom_right_x/2
+                new_midpoint_y = top_left_y/2 + bottom_right_y/2
+                error_margin = self.euclidean_distance(midpoint_x,midpoint_y,new_midpoint_x,new_midpoint_y)
+                
+                if (smallest_error_margin == -1) or (error_margin < smallest_error_margin):
+                    self.person_tracked_middlepoint.x = new_midpoint_x
+                    self.person_tracked_middlepoint.y = new_midpoint_y
+                    smallest_error_margin = error_margin
+                
+
+
+    def euclidean_distance(self,x1,y1,x2,y2):
+        """Calculates the eucliedean distance between two points (x1,y1) and (x2,y2)"""
+        return (x2-x1)**2 + (y2-y1)**2
+
     def track_target(self,frame,id_of_interest):
         """Function to track a person of a certain id only on a frame"""
 
