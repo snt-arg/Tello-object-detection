@@ -22,9 +22,6 @@ from cv_bridge import CvBridge
 
 
 
-right_hand_gesture = "Open_palm"
-
-left_hand_gesture = "Open_palm"
 
 class TriggerTracking(Node):
 
@@ -32,6 +29,10 @@ class TriggerTracking(Node):
     hand_landmarks_topic = "/hand/landmarks"
     person_tracked_topic = "/person_tracked"
     bounding_boxes_topic = "/all_bounding_boxes"
+
+    #Trigger gestures 
+    right_hand_gesture = "Open_Palm"
+    left_hand_gesture = "Open_Palm"
 
     
     def __init__(self,name):
@@ -146,7 +147,7 @@ class TriggerTracking(Node):
         result.y = self.person_tracked_midpoint.y * self.image_height
         return result
 
-    def find_bounding_box_of_tracked_person(self):
+    def find_bounding_box_of_tracked_person(self)->None:
         """Finds the bounding box around the person who did the triggering move and updates self.person_tracked_midpoint
         Precondition: self.boxes is not None"""
         
@@ -175,7 +176,7 @@ class TriggerTracking(Node):
                             return 
        
     
-    def find_bounding_box_middlepoint(self):
+    def find_bounding_box_middlepoint(self)->None:
         """Find the nearest bounding box containing the middlepoint and updates the middlepoint.
         This function is to use only when we already have a person to track (and hence, self.person_tracked_midpoint is not None)
 
@@ -255,8 +256,7 @@ def main(args=None):
     #Execute the callback function until the global executor is shutdown
     rclpy.spin(trigger_tracking)
     
-
-    #trigger_tracking.video.release()
+        #trigger_tracking.video.release()
 
     #destroy the node. It is not mandatory, since the garbage collection can do it
     trigger_tracking.destroy_node()
