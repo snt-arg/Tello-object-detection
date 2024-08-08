@@ -61,6 +61,11 @@ class TrackPerson(Node):
 
         self.correction = None
 
+        self.move_right = 3
+        self.move_left = 3
+        self.move_up = 3
+        self.move_down = 3
+
         
 ###########################first subscriber###########################################################################################   
     def listener_callback(self, msg):
@@ -69,35 +74,55 @@ class TrackPerson(Node):
         
         self.get_logger().info('Midpoint received')
         self.person_tracked_midpoint = msg.middle_point
+        self.get_logger().info(f'midpoint {self.person_tracked_midpoint}')
         self.correction = self.pid.compute(self.person_tracked_midpoint)
                
 ######################### Publisher #####################################################################################################
     def commands_callback(self):
         """This function sends appropriate to the drone in order to keep the tracked person within the camera's field while ensuring safety"""
         self.commands_msg = Twist()
-        
+    
         if self.correction is not None:
             correction_x, correction_y = self.correction
-            if correction_x < -0.2 : #Here I don't put 0 to avoid having the drone always moving
-                #print("move left")
-                #self.commands_msg.li
-                print("move right")
-                self.commands_msg.linear.y -= 0.5
-
-            elif correction_x > 0.2 :
-                #print("move right")
+            self.get_logger().info(f'Correction x:{correction_x}, y:{correction_y}')
+            self.get_logger().info(f'midpoint {self.person_tracked_midpoint}')
+            if self.person_tracked_midpoint.x < 0.4:#correction_x < -0.6 : #Here I don't put 0 to avoid having the drone always moving
                 print("move left")
-                self.commands_msg.linear.y += 0.5
+                #self.commands_msg.li
+                #print("move right")
+                #if self.move_left > 0: #for safety looollll
+                self.commands_msg.linear.y -= 0.3
+                #    self.move_left -= 1
+                #else:
+                #    self.commands_msg.linear.y += 0.0
 
-            if correction_y < -0.2 :
-                #print("move down")
-                print("move up")
-                self.commands_msg.linear.z += 0.5
 
-            elif correction_y > 0.2 :
+            elif self.person_tracked_midpoint.x > 0.6:#correction_x > 0.6 :
+                print("move right")
+                #print("move left")
+                #if self.move_right > 0:
+                self.commands_msg.linear.y += 0.3
+                #    self.move_right -= 1
+                #else:
+                #    self.commands_msg.linear.y += 0.0
+
+            #if correction_y < -0.6 :
+            #    print("move down")
                 #print("move up")
-                print("move down")
-                self.commands_msg.linear.z -= 0.5
+                #if self.move_down > 0:
+            #    self.commands_msg.linear.z -= 0.3
+                #    self.move_down -= 1
+                #else:
+                #    self.commands_msg.linear.z += 0.0
+
+            #elif correction_y > 0.6 :
+            #    print("move up")
+                #print("move down")
+                #if self.move_up > 0:
+            #    self.commands_msg.linear.z += 0.3
+                 #   self.move_up -= 1
+                #else:
+                #    self.commands_msg.linear.z += 0.0
 
             self.publisher_commands.publish(self.commands_msg) 
                     
