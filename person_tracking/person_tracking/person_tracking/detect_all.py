@@ -94,7 +94,7 @@ class DetectAll(PluginBase):
 
         #Saving all bounding boxes's coordinates in self.boxes
         self.boxes = AllBoundingBoxes()
-        for box in results[0].boxes.xyxyn.tolist():
+        for box in results[0].boxes.xyxyn.tolist(): #normalized coordinates (within 0 and 1)
             box_msg.top_left.x = box[0]
             box_msg.top_left.y = box[1]
             box_msg.bottom_right.x = box[2]
@@ -125,9 +125,11 @@ class DetectAll(PluginBase):
         A list of the coordinates of bounding boxes detected on the frame is published.
         """
         if(self.boxes is None):
-            self.get_logger().info("Can't publish bounding boxes. No nformation received yet")    
+            self.get_logger().info("Can't publish bounding boxes. No information received yet")    
         else:
             self.publisher_bounding_boxes.publish(self.boxes)
+            self.get_logger().info("Publishing a bounding boxes")
+
 
     def tick(self) -> NodeState:
         """This method is a mandatory for PluginBase node. It defines what we want our node to do.
@@ -140,7 +142,7 @@ class DetectAll(PluginBase):
 
 
 def main(args=None):
-    #Initialization of ROS communication 
+    #Initialization of ROS communication  
     rclpy.init(args=args)
 
     #Node instantiation
