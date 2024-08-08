@@ -173,6 +173,9 @@ class TriggerTracking(Node):
                         if bottom_right_y >= left_hand_y and bottom_right_y >= right_hand_y:
                             self.person_tracked_midpoint.x = top_left_x/ 2 + bottom_right_x/2 
                             self.person_tracked_midpoint.y = top_left_y/2 + bottom_right_y/2
+                            self.get_logger().info(f"top_left: {top_left_x}, {top_left_y}")
+                            self.get_logger().info(f"bottom_right: {bottom_right_x}, {bottom_right_y}")
+                            self.get_logger().info(f'First time midpoint updated to {self.person_tracked_midpoint}')
                             return 
        
     
@@ -205,13 +208,14 @@ class TriggerTracking(Node):
                 new_midpoint_x = top_left_x/ 2 + bottom_right_x/2
                 new_midpoint_y = top_left_y/2 + bottom_right_y/2
                 error_margin = self.euclidean_distance_squared(midpoint_x,midpoint_y,new_midpoint_x,new_midpoint_y) #distance between midpoints
-                
+                self.get_logger().info(f"top_left: {top_left_x}, {top_left_y}")
+                self.get_logger().info(f"bottom_right: {bottom_right_x}, {bottom_right_y}")
                 #updating the midpoint
                 if (smallest_error_margin == -1) or (error_margin < smallest_error_margin):
                     self.person_tracked_midpoint.x = new_midpoint_x
                     self.person_tracked_midpoint.y = new_midpoint_y
                     smallest_error_margin = error_margin
-                
+        self.get_logger().info(f'Midpoint updated to {self.person_tracked_midpoint}') 
 
 
     def euclidean_distance_squared(self,x1,y1,x2,y2):
