@@ -115,7 +115,8 @@ class TriggerTracking(Node):
 
         if self.boxes is None:
             self.get_logger().info("No bounding box received")
-        else:
+
+        elif self.boxes:#empty lists in Python can be evaluated as a boolean False. Hence this test is to make sure that boxes are received
             if self.tracking == False: #if no one has done the trigger move yet
                 if self.check_gesture(True):
                     self.get_logger().info("\n Tracking Started!!")
@@ -134,7 +135,7 @@ class TriggerTracking(Node):
                     #Find the bounding box around the person who did the trigger gesture, so that the midpoint of the box can be calculated
                     self.find_bounding_box_of_tracked_person()
                     
-                    self.person_tracked_msg.middle_point = self.person_tracked_midpoint #self.denormalize()  <--- This is useful if we want to send the real coordinates of the midpoint, and not coordinate within the range [0,1]
+                    #self.person_tracked_msg.middle_point = self.person_tracked_midpoint #self.denormalize()  <--- This is useful if we want to send the real coordinates of the midpoint, and not coordinate within the range [0,1]
                     
                     if self.person_tracked_midpoint is not None:
                         self.publisher_to_track.publish(self.person_tracked_msg)                  
@@ -146,10 +147,10 @@ class TriggerTracking(Node):
                     self.person_tracked_midpoint = None
                         
                 else:
-                    self.find_bounding_box_middlepoint()
-                    self.person_tracked_msg.middle_point = self.person_tracked_midpoint #self.denormalize() <--- This is useful if we want to send real coordinates of the midpoint, and not coordinate within the range [0,1]
+                    self.update_middlepoint()
+                    #self.person_tracked_msg.middle_point = self.person_tracked_midpoint #self.denormalize() <--- This is useful if we want to send real coordinates of the midpoint, and not coordinate within the range [0,1]
                     self.publisher_to_track.publish(self.person_tracked_msg) 
-                    print("\nNow we know the person to track. midpoint is ", self.person_tracked_midpoint,"\n")
+                    print("\nNow we know the person to track. midpoint is ", self.person_tracked_msg.middle_point,"\n")
                     self.get_logger().info(f"{self.landmarks.right_hand.gesture} {self.landmarks.left_hand.gesture}")
 
 
@@ -197,17 +198,22 @@ class TriggerTracking(Node):
                 if bottom_right_x >= left_hand_x and bottom_right_x >= right_hand_x:
                     if top_left_y <= left_hand_y and top_left_y <= right_hand_y:
                         if bottom_right_y >= left_hand_y and bottom_right_y >= right_hand_y:
+
                             self.person_tracked_midpoint.x = top_left_x/ 2 + bottom_right_x/2 
                             self.person_tracked_midpoint.y = top_left_y/2 + bottom_right_y/2
+                            
+                            self.person_tracked_msg.middle_point = self.person_tracked_midpoint #self.denormalize()
+
                             self.get_logger().info(f"top_left: {top_left_x}, {top_left_y}")
                             self.get_logger().info(f"bottom_right: {bottom_right_x}, {bottom_right_y}")
-                            self.get_logger().info(f'First time midpoint updated to {self.person_tracked_midpoint}')
+                            self.get_logger().info(f'First time midpoint updated to {self.person_tracked_msg.middle_point} \n')#{self.person_tracked_midpoint}')
+
                             return  
         if self.person_tracked_midpoint is None:
             self.get_logger().info(f"\nCannot find the person who did the gesture")
 
     
-    def find_bounding_box_middlepoint(self)->None:
+    def update_middlepoint(self)->None:
         """Find the nearest bounding box containing the middlepoint and updates the middlepoint.
         This function is to use only when we already have a person to track (and hence, self.person_tracked_midpoint is not None)
 
@@ -216,7 +222,8 @@ class TriggerTracking(Node):
         """
         #error between the actual midpoint (self.person_tracked_midpoint) and the midpoint of the bounding box
         smallest_error_margin = -1
-        prev_midpoint = self.person_tracked_midpoint
+        prev_midpoint_x = self.person_tracked_midpoint.x
+        prev_midpoint_y = self.person_tracked_midpoint.y
         #Loop to go through all the bounding boxes to find the bounding box whose midpoint is the closest to the midpoint of person tracked in the previous frame.
         #The midpoint found will be the new midpoint of the person to track
         for box in self.boxes.bounding_boxes:
@@ -244,7 +251,14 @@ class TriggerTracking(Node):
                     self.person_tracked_midpoint.y = new_midpoint_y
                     smallest_error_margin = error_margin
         
-        self.get_logger().info(f'Midpoint updated to {self.person_tracked_midpoint}') 
+        #In case no bounding box is found, we send a midpoint of coordinates (0,0)
+        if prev_midpoint_x == self.person_tracked_midpoint.x and prev_midpoint_y == self.person_tracked_midpoint.y:
+            #temp_midpoint = PointMsg() is initialized to x = 0 and y = 0 by default since ROS initializes all numeric values to 0 by default
+            self.person_tracked_msg.middle_point = PointMsg()
+            #pass
+        else:
+            self.person_tracked_msg.middle_point = self.person_tracked_midpoint #self.denormalize()
+            self.get_logger().info(f'Midpoint updated to {self.person_tracked_midpoint}') 
     
 
     def euclidean_distance_squared(self,x1,y1,x2,y2):
