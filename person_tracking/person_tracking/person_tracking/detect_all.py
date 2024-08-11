@@ -100,7 +100,7 @@ class DetectAll(PluginBase):
             box_msg.bottom_right.x = box[2]
             box_msg.bottom_right.y = box[3]
             self.boxes.bounding_boxes.append(box_msg)
-        
+        self.get_logger().info(f"self.boxes : {self.boxes.bounding_boxes}")
         #returning the image where bounding boxes are displayed
         frame_ = results[0].plot()
         return frame_
