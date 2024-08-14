@@ -50,7 +50,7 @@ class TrackPerson(Node):
 
         #publishers
         self.publisher_commands = self.create_publisher(Twist,self.commands_topic,10)
-        self.timer_1 = self.create_timer(1, self.commands_callback)
+        self.timer_1 = self.create_timer(0.5, self.commands_callback)
         #self.timer_1 = self.create_timer(10, self.commands_callback)
 
         
@@ -78,7 +78,7 @@ class TrackPerson(Node):
         #self.get_logger().info('Midpoint received')
         self.person_tracked_midpoint = msg.middle_point
 
-        if self.person_tracked_midpoint.x == 0 and self.person_tracked_midpoint.y == 0:
+        if self.empty_midpoint():
             self.empty_midpoint_count += 1
         else:
             self.midpoint_queue.append(self.person_tracked_midpoint)
@@ -143,8 +143,10 @@ class TrackPerson(Node):
         self.commands_msg = Twist()
         self.get_logger().info(f"\nself.person_lost :{self.person_lost()}\n")
         self.get_logger().info(f"\nself.empty_midpoint_count :{self.empty_midpoint_count}\n")
+
         if self.person_lost():
-            self.get_logger().info("\nWalaheiiiiiiiiiii\nWalaheiiiiiiiiiii\nWalaheiiiiiiiiiii\n")
+
+            #self.get_logger().info("\nWalaheiiiiiiiiiii\nWalaheiiiiiiiiiii\nWalaheiiiiiiiiiii\n")
             direction = self.direction_person_lost()
             
             if direction == "left":
@@ -175,13 +177,16 @@ class TrackPerson(Node):
                 self.get_logger().info(f'Correction x:{correction_x}, y:{correction_y}')
                 self.get_logger().info(f'midpoint {self.person_tracked_midpoint}')
 
-                if self.person_tracked_midpoint.x < 0.3:#correction_x < -0.6 : #Here I don't put 0 to avoid having the drone always moving
-                    print("move left")
+                if self.empty_midpoint():
+                    self.get_logger().info('Empty midpoint')
+
+                elif self.person_tracked_midpoint.x < 0.3:#correction_x < -0.6 : #Here I don't put 0 to avoid having the drone always moving
+                    self.get_logger().info("move left")
                     #print("move right")
                     self.commands_msg.linear.y -= 0.3
 
                 elif self.person_tracked_midpoint.x > 0.7:#correction_x > 0.6 :
-                    print("move right")
+                    self.get_logger().info("move right")
                     #print("move left")                
                     self.commands_msg.linear.y += 0.3
 
@@ -223,7 +228,7 @@ class TrackPerson(Node):
             t0 = self.get_clock().now()
 
             while abs(current_angle) <= abs(target_angle): 
-                if self.person_tracked_midpoint.x != 0 and self.person_tracked_midpoint.y != 0:
+                if not self.empty_midpoint:
                     self.empty_midpoint_count = 0
                     break
                 self.publisher_commands.publish(self.commands_msg) 
@@ -231,8 +236,15 @@ class TrackPerson(Node):
 
                 current_angle = self.commands_msg.angular.z * ((t1-t0).to_msg().sec)
 
-                self.get_logger().info(f"rotation! angular.z is {self.commands_msg.angular.z} and current_angle is {current_angle}")
-                        
+            self.get_logger().info(f"rotation! angular.z is {self.commands_msg.angular.z} and current_angle is {current_angle}")
+
+    def empty_midpoint(self):
+        """Function to test if the current midpoint is empty (x==0 and y==0). 
+        Returns True if the midpoint is empty, and false else"""
+        if self.person_tracked_midpoint.x == 0 and self.person_tracked_midpoint.y == 0:
+            return True
+        else:
+            return False               
 ###################################################################################################################################       
   
 
