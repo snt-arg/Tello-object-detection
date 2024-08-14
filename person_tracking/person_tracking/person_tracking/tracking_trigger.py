@@ -125,7 +125,7 @@ class TriggerTracking(Node):
         if self.boxes is None:
             self.get_logger().info("No bounding box received")
 
-        elif self.boxes:#empty lists in Python can be evaluated as a boolean False. Hence this test is to make sure that boxes are received
+        elif self.boxes.bounding_boxes:#empty lists in Python can be evaluated as a boolean False. Hence this test is to make sure that boxes are received
             if self.tracking == False: #if no one has done the trigger move yet
                 if self.check_gesture(True):
                     self.get_logger().info("\n Tracking Started!!")
@@ -147,7 +147,7 @@ class TriggerTracking(Node):
                     if self.person_tracked_midpoint is not None:
                         self.publisher_to_track.publish(self.person_tracked_msg)                  
 
-            elif: #if someone did the trigger move yet 
+            else: #if someone did the trigger move yet 
                 if not self.person_lost(): #if the tracked person is not lost (is still within the camera's field)
 
                     if self.check_gesture(False):
@@ -161,8 +161,11 @@ class TriggerTracking(Node):
                         self.get_logger().info(f"\nNow we know the person to track. midpoint is {self.person_tracked_msg.middle_point} \n")
                         self.get_logger().info(f"{self.landmarks.right_hand.gesture} {self.landmarks.left_hand.gesture}")
                 
-                else: #if the tracked person is lost, we start tracking the first person detected by our YOLO model
-
+                else: #if the tracked person is lost, we start tracking the person detected by our YOLO model with the highest confidence score (the person from the first bounding box)
+                    highest_conf_box = self.boxes.bounding_boxes[0]
+                    self.person_tracked_midpoint.x = (highest_conf_box.top_left.x / 2) + (highest_conf_box.bottom_right.x / 2) 
+                    self.person_tracked_midpoint.y = (highest_conf_box.top_left.y / 2) + (highest_conf_box.bottom_right.y / 2)
+                    self.empty_midpoint_count = 0
 
         else:
             self.get_logger().info(f"The list of bounding boxes is empty. Hence, maybe no detection were made.")
