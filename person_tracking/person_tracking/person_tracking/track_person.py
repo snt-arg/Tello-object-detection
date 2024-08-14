@@ -33,8 +33,8 @@ class TrackPerson(Node):
     land_topic = "/land" #carries Empty msgs
 
 
-    image_height = 480
-    image_width = 640
+    #image_height = 480
+    #image_width = 640
 
     max_length_midpoint_queue = 2
 
@@ -47,9 +47,7 @@ class TrackPerson(Node):
         
         #subscribers
         self.sub_person_tracked = self.create_subscription(PersonTracked,self.person_tracked_topic, self.listener_callback,10)
-        #self.sub_landmark = self.create_subscription(Landmarks,self.hand_landmarks_topic, self.landmarks_listener_callback,10)
-        
-    
+
         #publishers
         self.publisher_commands = self.create_publisher(Twist,self.commands_topic,10)
         self.timer_1 = self.create_timer(1, self.commands_callback)
@@ -59,10 +57,6 @@ class TrackPerson(Node):
         #self.publisher_land = self.create_publisher(Empty,self.land_topic,10)
         #self.timer_2 = self.create_timer(0.1, self.land_callback)
 
-        #self.cv_bridge = CvBridge()
-
-        #Variable to received bounding boxes containing all persons detected
-        #self.boxes = None
         self.pid = PIDPoint((0.5, 0.5)) #middle of the screen for normalized midpoint coordinates
        
         self.person_tracked_midpoint = None
@@ -71,12 +65,6 @@ class TrackPerson(Node):
 
         self.correction = None
 
-        #self.move_right = 3
-        #self.move_left = 3
-        #self.move_up = 3
-        #self.move_down = 3
-
-    
         self.midpoint_queue = deque(maxlen=self.max_length_midpoint_queue)
         self.empty_midpoint_count = 0 #variable to count the amount of empty messages received. If this number is higher than a certain number, the person is considered lost.
         
@@ -103,7 +91,7 @@ class TrackPerson(Node):
 
     def direction_person_lost(self):
         """Function to determine whether the drone should rotate left, right, up or down to find the lost person"""
-        if len(self.midpoint_queue) == 2:
+        if len(self.midpoint_queue) == self.max_length_midpoint_queue:
             point_1 = self.midpoint_queue[1] #most recent midpoint
             point_2 = self.midpoint_queue[0] #previous midpoint
             slope = ( point_2.y - point_1.y ) / ( point_2.x - point_1.x )
@@ -153,16 +141,21 @@ class TrackPerson(Node):
     def commands_callback(self):
         """This function sends appropriate to the drone in order to keep the tracked person within the camera's field while ensuring safety"""
         self.commands_msg = Twist()
-
+        self.get_logger().info(f"\nself.person_lost :{self.person_lost()}\n")
+        self.get_logger().info(f"\nself.empty_midpoint_count :{self.empty_midpoint_count}\n")
         if self.person_lost():
+            self.get_logger().info("\nWalaheiiiiiiiiiii\nWalaheiiiiiiiiiii\nWalaheiiiiiiiiiii\n")
             direction = self.direction_person_lost()
+            
             if direction == "left":
-                self.commands_msg.angular.z = pi
-                print("Turn left") #to del
+                print("Rotate left") 
+                self.rotation(pi,2*pi)
+                #to del
             
             elif direction == "right":
-                self.commands_msg.angular.z = -pi
-                print("Turn right")
+                print("Rotate right")
+                self.rotation(-pi,2*pi)
+                
 
            # elif direction == "up":
                 #self.commands_msg.linear.y += 0.5
@@ -175,36 +168,8 @@ class TrackPerson(Node):
             else:
                 self.get_logger().info(f'No trajectory can be found')
 
-        """####################TEST#######################
-        #if (self.test % 10) == 0:
-        #self.commands_msg.angular.z = 0.5
-        #while self.commands_msg.angular.z != 0 :
-        current_angle = 0
-        target_angle = 2*pi
-
-        self.commands_msg.angular.z = pi
-        self.commands_msg.linear.x = 0.0
-        self.commands_msg.linear.y = 0.0
-        self.commands_msg.linear.z = 0.0
-        self.commands_msg.angular.y = 0.0
-        self.commands_msg.angular.x = 0.0
-
-        t0 = self.get_clock().now()
-
-        while current_angle < target_angle: 
-            self.publisher_commands.publish(self.commands_msg) 
-            t1 = self.get_clock().now()
-
-            current_angle = self.commands_msg.angular.z * ((t1-t0).to_msg().sec)
-
-            self.get_logger().info(f"rotation {self.test}. angular.z is {self.commands_msg.angular.z} and current_angle is {current_angle}")
-            self.test += 1
-        
-        #############END TEST#########################
-        """
-        
-        
         else:
+            
             if self.correction is not None:
                 correction_x, correction_y = self.correction
                 self.get_logger().info(f'Correction x:{correction_x}, y:{correction_y}')
@@ -220,7 +185,7 @@ class TrackPerson(Node):
                     #print("move left")                
                     self.commands_msg.linear.y += 0.3
 
-        self.publisher_commands.publish(self.commands_msg)
+            self.publisher_commands.publish(self.commands_msg)
             #if correction_y < -0.6 :
             #    print("move down")
                 #print("move up")
@@ -246,9 +211,28 @@ class TrackPerson(Node):
             return True
         else: 
             return False    
+ 
+    def rotation(self, angular_speed, target_angle):
+        """Function to send rotation commands to the drone. """
+        if self.commands_msg is not None:
+            current_angle = 0
+            #target_angle = 2*pi
 
-        
-                    
+            self.commands_msg.angular.z = angular_speed#pi
+
+            t0 = self.get_clock().now()
+
+            while abs(current_angle) <= abs(target_angle): 
+                if self.person_tracked_midpoint.x != 0 and self.person_tracked_midpoint.y != 0:
+                    self.empty_midpoint_count = 0
+                    break
+                self.publisher_commands.publish(self.commands_msg) 
+                t1 = self.get_clock().now()
+
+                current_angle = self.commands_msg.angular.z * ((t1-t0).to_msg().sec)
+
+                self.get_logger().info(f"rotation! angular.z is {self.commands_msg.angular.z} and current_angle is {current_angle}")
+                        
 ###################################################################################################################################       
   
 
@@ -266,4 +250,32 @@ def main(args=None):
     #destroy the node. It is not mandatory, since the garbage collection can do it
     track_person.destroy_node()
     
-    rclpy.shutdown()        
+    rclpy.shutdown()      
+
+"""####################TEST#######################
+        #if (self.test % 10) == 0:
+        #self.commands_msg.angular.z = 0.5
+        #while self.commands_msg.angular.z != 0 :
+        current_angle = 0
+        target_angle = 2*pi
+
+        self.commands_msg.angular.z = pi
+        self.commands_msg.linear.x = 0.0
+        self.commands_msg.linear.y = 0.0
+        self.commands_msg.linear.z = 0.0
+        self.commands_msg.angular.y = 0.0
+        self.commands_msg.angular.x = 0.0
+
+        t0 = self.get_clock().now()
+
+        while current_angle < target_angle: 
+            self.publisher_commands.publish(self.commands_msg) 
+            t1 = self.get_clock().now()
+
+            current_angle = self.commands_msg.angular.z * ((t1-t0).to_msg().sec)
+
+            self.get_logger().info(f"rotation {self.test}. angular.z is {self.commands_msg.angular.z} and current_angle is {current_angle}")
+            self.test += 1
+        
+        #############END TEST#########################
+"""  
