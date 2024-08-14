@@ -37,6 +37,8 @@ class TriggerTracking(Node):
     right_hand_gesture_stop= "Closed_Fist"
     left_hand_gesture_stop = "Closed_Fist"
 
+    #amount of midpoints to receive before concluding that the person is lost. 
+    max_empty_midpoint_before_lost = 10
     
     def __init__(self,name):
 
@@ -75,6 +77,13 @@ class TriggerTracking(Node):
 
         #Boolean variable to know whether to start or stop the tracking when spotting the trigger gesture.
         self.tracking = False 
+         
+        #Variable to count empty midpoints. We send an empty midpoint when the midpoint of the tracked person doesn't change.
+        #When the person gets out of the field of view, the midpoint will stay the same for a long period. 
+        #Hence, if for a certain amount of time, the midpoint doesn't change, 
+        #we can conclude that the person went out of the firld of view of the camera, and we can rotate.
+        self.empty_midpoint_count = 0 #variable to count the amount of empty messages received. If this number is higher than a certain number, the person is considered lost.
+        
          
         """self.image_height = None
 
@@ -121,6 +130,7 @@ class TriggerTracking(Node):
                 if self.check_gesture(True):
                     self.get_logger().info("\n Tracking Started!!")
                     self.tracking = True
+
                     #Saving the location of the hands of the person who did the move so that we can map him/her to a bounding box.
                     #Only the points at the center if ther person's wrists are kept.
                     self.person_tracked_left_hand_point = self.landmarks.left_hand.normalized_landmarks[0]
@@ -129,29 +139,34 @@ class TriggerTracking(Node):
                     
                     #Instantiating the midepoint ROS message
                     self.person_tracked_midpoint = PointMsg()
-                    #print("Bounding boxes",self.boxes.bounding_boxes,"\n\n")
                     #self.video.write(cv2.line(self.image_all_detected,(int(middle_left.x*self.width),int(middle_left.y*self.height)),(int(middle_right.x*self.width),int(middle_right.y*self.height)),(255,0,0),4))
                     
                     #Find the bounding box around the person who did the trigger gesture, so that the midpoint of the box can be calculated
                     self.find_bounding_box_of_tracked_person()
-                    
-                    #self.person_tracked_msg.middle_point = self.person_tracked_midpoint #self.denormalize()  <--- This is useful if we want to send the real coordinates of the midpoint, and not coordinate within the range [0,1]
-                    
+                                        
                     if self.person_tracked_midpoint is not None:
                         self.publisher_to_track.publish(self.person_tracked_msg)                  
 
-            else: #if someone did the trigger move yet
-                if self.check_gesture(False):
-                    self.get_logger().info("\n Tracking Ended!")
-                    self.tracking = False
-                    self.person_tracked_midpoint = None
-                        
-                else:
-                    self.update_middlepoint()
-                    #self.person_tracked_msg.middle_point = self.person_tracked_midpoint #self.denormalize() <--- This is useful if we want to send real coordinates of the midpoint, and not coordinate within the range [0,1]
-                    self.publisher_to_track.publish(self.person_tracked_msg) 
-                    print("\nNow we know the person to track. midpoint is ", self.person_tracked_msg.middle_point,"\n")
-                    self.get_logger().info(f"{self.landmarks.right_hand.gesture} {self.landmarks.left_hand.gesture}")
+            elif: #if someone did the trigger move yet 
+                if not self.person_lost(): #if the tracked person is not lost (is still within the camera's field)
+
+                    if self.check_gesture(False):
+                        self.get_logger().info("\n Tracking Ended!")
+                        self.tracking = False
+                        self.person_tracked_midpoint = None
+                            
+                    else:
+                        self.update_middlepoint()
+                        self.publisher_to_track.publish(self.person_tracked_msg) 
+                        self.get_logger().info(f"\nNow we know the person to track. midpoint is {self.person_tracked_msg.middle_point} \n")
+                        self.get_logger().info(f"{self.landmarks.right_hand.gesture} {self.landmarks.left_hand.gesture}")
+                
+                else: #if the tracked person is lost, we start tracking the first person detected by our YOLO model
+
+
+        else:
+            self.get_logger().info(f"The list of bounding boxes is empty. Hence, maybe no detection were made.")
+
 
 
     def check_gesture(self, trigger:bool):
@@ -255,40 +270,27 @@ class TriggerTracking(Node):
         if prev_midpoint_x == self.person_tracked_midpoint.x and prev_midpoint_y == self.person_tracked_midpoint.y:
             #temp_midpoint = PointMsg() is initialized to x = 0 and y = 0 by default since ROS initializes all numeric values to 0 by default
             self.person_tracked_msg.middle_point = PointMsg()
+            self.empty_midpoint_count += 1
             #pass
         else:
             self.person_tracked_msg.middle_point = self.person_tracked_midpoint #self.denormalize()
+            self.empty_midpoint_count = 0
             self.get_logger().info(f'Midpoint updated to {self.person_tracked_midpoint}') 
+            
     
 
     def euclidean_distance_squared(self,x1,y1,x2,y2):
         """Calculates the eucliedean distance between two points (x1,y1) and (x2,y2)"""
         return (x2-x1)**2 + (y2-y1)**2
 
-
-"""
-    def track_target(self,frame,id_of_interest):
-        #Function to track a person of a certain id only on a frame
-
-        results = model.track(frame,persist=True) #stream = True
-        index_of_target = 0
-        target_in_frame = False
-        for result in results[0]:
-            if id_of_interest in result.boxes.id.tolist():
-                #midpoint = result.boxes.xywh[0][0:2]
-                results[0] = results[0][i]
-                print(f"Tracking person ID {id_of_interest} at {result.boxes.xywh[0][0:2]}")
-                frame_ = results[0].plot()
-                target_in_frame = True
-                index_of_target = index_of_target + 1
-        if target_in_frame:
-            return frame_
-        else:
-            return frame
-"""
-       
-	    
-    
+    def person_lost(self):
+        """Function to call when someone is lost.
+        Returns true when the person is lost and False else."""  
+        if self.empty_midpoint_count >= self.max_empty_midpoint_before_lost:
+            return True
+        else: 
+            return False  
+           
 ###################################################################################################################################       
   
 
