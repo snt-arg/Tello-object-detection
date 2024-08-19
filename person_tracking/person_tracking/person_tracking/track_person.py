@@ -50,7 +50,7 @@ class TrackPerson(Node):
 
         #publishers
         self.publisher_commands = self.create_publisher(Twist,self.commands_topic,10)
-        self.timer_1 = self.create_timer(0.5, self.commands_callback)
+        self.timer_1 = self.create_timer(0.1, self.commands_callback)
         #self.timer_1 = self.create_timer(10, self.commands_callback)
 
         
@@ -141,6 +141,12 @@ class TrackPerson(Node):
     def commands_callback(self):
         """This function sends appropriate to the drone in order to keep the tracked person within the camera's field while ensuring safety"""
         self.commands_msg = Twist()
+        self.commands_msg.linear.x = 0.0
+        self.commands_msg.linear.y = 0.0
+        self.commands_msg.linear.z = 0.0
+        self.commands_msg.angular.x = 0.0
+        self.commands_msg.angular.y = 0.0
+        self.commands_msg.angular.z = 0.0
         self.get_logger().info(f"\nself.person_lost :{self.person_lost()}\n")
         self.get_logger().info(f"\nself.empty_midpoint_count :{self.empty_midpoint_count}\n")
 
@@ -180,17 +186,20 @@ class TrackPerson(Node):
                 if self.empty_midpoint():
                     self.get_logger().info('Empty midpoint')
 
-                elif self.person_tracked_midpoint.x < 0.3:#correction_x < -0.6 : #Here I don't put 0 to avoid having the drone always moving
+                elif self.person_tracked_midpoint.x < 0.4:#correction_x < -0.6 : #Here I don't put 0 to avoid having the drone always moving
                     self.get_logger().info("move left")
                     #print("move right")
-                    self.commands_msg.linear.y -= 0.3
+                    #self.commands_msg.linear.y -= 0.3  #not correct.......probably
+                    self.commands_msg.linear.y = 0.3
 
-                elif self.person_tracked_midpoint.x > 0.7:#correction_x > 0.6 :
+                elif self.person_tracked_midpoint.x > 0.6:#correction_x > 0.6 :
                     self.get_logger().info("move right")
                     #print("move left")                
-                    self.commands_msg.linear.y += 0.3
+                    #self.commands_msg.linear.y += 0.3  #not correct......probably
+                    self.commands_msg.linear.y = -0.3
 
-            self.publisher_commands.publish(self.commands_msg)
+                self.publisher_commands.publish(self.commands_msg) 
+           
             #if correction_y < -0.6 :
             #    print("move down")
                 #print("move up")
@@ -290,4 +299,37 @@ def main(args=None):
             self.test += 1
         
         #############END TEST#########################
+
+        ###########test##################################
+        
+        if self.test % 2 == 0:
+            #print("move left")
+            self.move("left")
+            self.test += 1
+        else:
+            self.move("right")
+            self.test += 1
+                
+        
+        #########################end test################
+
+        def move(self,direction):
+        #function to move the drone left or right
+        #direction can only be 'left' or 'right' 
+            msg = Twist()
+
+            if direction == "left":
+                msg.linear.y = 0.5
+            else:
+                msg.linear.y = -0.5
+
+            t0 = self.get_clock().now()
+            t1 = self.get_clock().now()
+
+            time = 2 if direction == "left" else 1
+            while (t1-t0).to_msg().sec < 2: 
+                self.publisher_commands.publish(msg) 
+                t1 = self.get_clock().now()
+            self.get_logger().info(f"movement  {direction}!!")
 """  
+
