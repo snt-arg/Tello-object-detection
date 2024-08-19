@@ -1,12 +1,13 @@
-# 👩‍💻📸 Object detection using YOLOv8
+# 👩‍💻📸 Object detection and Person tracking with Tello drone
 
 For my Bachelor Semester Project 2, I chose to focus on object detection, by leveraging on YOLOv8, 
 a popular framework for object detection, object classification and more, developed by [Ultralytics](https://github.com/ultralytics).
 
 GitHub repository for YOLOv8 : (https://github.com/ultralytics/ultralytics)
 
+My Bachelor Semester Project 4 
+
 The project is divised into two parts:
-* Object detection Python application
 * Implementation on a robot using [ROS](https://www.ros.org/)
 
 ## 🔍 Table Of Contents
