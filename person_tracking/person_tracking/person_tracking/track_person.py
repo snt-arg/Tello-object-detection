@@ -2,12 +2,11 @@
 import rclpy
 from rclpy.node import Node
 
-from std_msgs.msg import Empty
+from std_msgs.msg import Empty, String
 
 #ROS Twist message import. This message type is used to send commands to the drone.
 from geometry_msgs.msg import Twist
 
-from std_msgs.msg import String
 
 #Custom message containing the midpoint of the bounding box surrounding the tracked person
 from person_tracked.msg import PersonTracked, PointMsg
@@ -60,9 +59,9 @@ class TrackPerson(Node):
         self.timer = self.create_timer(0.09, self.commands_callback)
         #self.timer_1 = self.create_timer(10, self.commands_callback)
 
-        self.publisher_takeoff = self.create_publisher(Empty,self.land_topic,1)
+        self.publisher_takeoff = self.create_publisher(Empty,self.takeoff_topic,1)
        
-        self.publisher_land = self.create_publisher(Empty,self.takeoff_topic,1)
+        self.publisher_land = self.create_publisher(Empty,self.land_topic,1)
         
 
         self.pid = PIDPoint((0.5, 0.5)) #middle of the screen for normalized midpoint coordinates
@@ -156,8 +155,7 @@ class TrackPerson(Node):
                       
 ######################### Publisher #####################################################################################################
     def commands_callback(self):
-
-        self.get_keyboard_input()
+        self.land_takeoff()
         self.update_commands()
 
     def update_commands(self):
@@ -271,7 +269,15 @@ class TrackPerson(Node):
 
     def land_takeoff(self):
         """Prompts the drone to land or takeoff, depending on the messages received"""
-        
+        if self.key_pressed is not None:
+            if self.key_pressed == "t":
+                self.publisher_takeoff.publish(Empty())
+                return
+            if self.key_pressed == "l":
+                self.publisher_land.publish(Empty())
+                return
+
+
 
             
 ###################################################################################################################################       
