@@ -46,8 +46,8 @@ class TriggerTracking(Node):
         super().__init__(name)
         
         #subscribers
-        self.sub_bounding_boxes = self.create_subscription(AllBoundingBoxes,self.bounding_boxes_topic, self.bounding_boxes_listener_callback,10)
-        self.sub_landmark = self.create_subscription(Landmarks,self.hand_landmarks_topic, self.landmarks_listener_callback,10)
+        self.sub_bounding_boxes = self.create_subscription(AllBoundingBoxes,self.bounding_boxes_topic, self.bounding_boxes_listener_callback,5)
+        self.sub_landmark = self.create_subscription(Landmarks,self.hand_landmarks_topic, self.landmarks_listener_callback,5)
         
         """self.test_sub = self.create_subscription(Image,"/all_detected",self.test_listener,10)"""
 
