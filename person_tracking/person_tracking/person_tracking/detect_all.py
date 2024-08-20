@@ -5,6 +5,8 @@ from rclpy.node import Node
 #ROS image message
 from sensor_msgs.msg import Image
 
+from std_msgs.msg import String
+
 #Custom message to send bounding boxes
 from all_bounding_boxes_msg.msg import AllBoundingBoxes, Box
 
@@ -13,6 +15,9 @@ from cv_bridge import CvBridge
 
 #Node base to be able to integrate our project to the Tello_ws
 from plugin_server_base.plugin_base import PluginBase, NodeState
+
+#Pygame interface
+from tello_control_station.interface import Interface, matching_keys
 
 #YOLOv8 object detection framework
 from ultralytics import YOLO
@@ -37,6 +42,7 @@ class DetectAll(PluginBase):
     image_raw_topic = "/camera/image_raw"
     all_detected_topic = "/all_detected"
     bounding_boxes_topic = "/all_bounding_boxes"
+    key_pressed_topic = "/key_pressed"
     
     def __init__(self,name):
 
@@ -44,12 +50,13 @@ class DetectAll(PluginBase):
         super().__init__(name)
         
         #subscribers
-        self.sub_raw = self.create_subscription(Image,self.image_raw_topic, self.listener_callback,10)
+        self.sub_raw = self.create_subscription(Image,self.image_raw_topic, self.listener_callback,5)
         
         #publishers
-        self.publisher_all_detected = self.create_publisher(Image,self.all_detected_topic,10)
-        self.publisher_bounding_boxes = self.create_publisher(AllBoundingBoxes,self.bounding_boxes_topic,10)
-        
+        self.publisher_all_detected = self.create_publisher(Image,self.all_detected_topic,5)
+        self.publisher_bounding_boxes = self.create_publisher(AllBoundingBoxes,self.bounding_boxes_topic,5)
+        self.publisher_key_pressed = self.create_publisher(String,self.key_pressed_topic,5)
+
         #to convert cv2 images to Ros Image messages and vice versa
         self.cv_bridge = CvBridge()
 
@@ -64,6 +71,9 @@ class DetectAll(PluginBase):
 
         #Counter to track how many frames were received.
         self.frame_counter = 0 
+
+        #Pygame interface
+        self.pg_interface = Interface()
 
 
 
@@ -130,14 +140,29 @@ class DetectAll(PluginBase):
             self.publisher_bounding_boxes.publish(self.boxes)
             self.get_logger().info("Publishing a bounding boxes")
 
+    def key_pressed_callback(self):
+        keys = self.pg_interface.get_key_pressed()
+        msg = String()
+        # START/STOP
+        if keys[matching_keys["t"]]:
+            msg.data = "t"
+            self.publisher_key_pressed.publish(msg)
+            return 
+        if keys[matching_keys["l"]]:
+            msg.data = "l"
+            self.publisher_land.publish(msg)
+            return
 
     def tick(self) -> NodeState:
         """This method is a mandatory for PluginBase node. It defines what we want our node to do.
         It gets called 20 times a second if state=RUNNING
         Here we call callback functions to publish a detection frame and the list of bounding boxes.
         """
+        self.pg_interface.tick()
+        self.key_pressed_callback()
         self.all_detected_callback()
         self.bounding_boxes_callback()
+        
         return NodeState.RUNNING
 
 
