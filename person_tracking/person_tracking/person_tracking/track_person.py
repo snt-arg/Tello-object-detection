@@ -7,6 +7,7 @@ from std_msgs.msg import Empty
 #ROS Twist message import. This message type is used to send commands to the drone.
 from geometry_msgs.msg import Twist
 
+from std_msgs.msg import String
 
 #Custom message containing the midpoint of the bounding box surrounding the tracked person
 from person_tracked.msg import PersonTracked, PointMsg
@@ -24,13 +25,17 @@ from collections import deque
 
 from math import pi
 
+
+
+
 class TrackPerson(Node):
 
-    
+    key_pressed_topic = "/key_pressed"
     person_tracked_topic = "/person_tracked"
     #bounding_boxes_topic = "/all_bounding_boxes"
     commands_topic = "/cmd_vel" #carries Twist msgs
     land_topic = "/land" #carries Empty msgs
+    takeoff_topic = "/takeoff"
 
 
     #image_height = 480
@@ -46,16 +51,19 @@ class TrackPerson(Node):
         super().__init__(name)
         
         #subscribers
-        self.sub_person_tracked = self.create_subscription(PersonTracked,self.person_tracked_topic, self.listener_callback,10)
+        self.sub_person_tracked = self.create_subscription(PersonTracked,self.person_tracked_topic, self.listener_callback,5)
+
+        self.sub_key_pressed = self.create_subscription(String,self.key_pressed_topic, self.key_pressed_subscriber_callback,5)
 
         #publishers
         self.publisher_commands = self.create_publisher(Twist,self.commands_topic,10)
-        self.timer_1 = self.create_timer(0.1, self.commands_callback)
+        self.timer = self.create_timer(0.09, self.commands_callback)
         #self.timer_1 = self.create_timer(10, self.commands_callback)
 
+        self.publisher_takeoff = self.create_publisher(Empty,self.land_topic,1)
+       
+        self.publisher_land = self.create_publisher(Empty,self.takeoff_topic,1)
         
-        #self.publisher_land = self.create_publisher(Empty,self.land_topic,10)
-        #self.timer_2 = self.create_timer(0.1, self.land_callback)
 
         self.pid = PIDPoint((0.5, 0.5)) #middle of the screen for normalized midpoint coordinates
        
@@ -66,28 +74,34 @@ class TrackPerson(Node):
         self.correction = None
 
         self.midpoint_queue = deque(maxlen=self.max_length_midpoint_queue)
+        
         self.empty_midpoint_count = 0 #variable to count the amount of empty messages received. If this number is higher than a certain number, the person is considered lost.
         
-        self.test = 0
+        self.update_midpoint = False #is true when we receive a new midpoint that is different than (0,0)
 
+        self.key_pressed = None
+
+        
+        
 ###########################first subscriber###########################################################################################   
     def listener_callback(self, msg):
         """Callback function for the subscriber node (to topic /person_tracked).
         Receives the midpoint of the bounding box surrounding the person tracked"""
         
         #self.get_logger().info('Midpoint received')
-        self.person_tracked_midpoint = msg.middle_point
+        tmp = msg.middle_point
 
-        if self.empty_midpoint():
+        if self.empty_midpoint(tmp):
             self.empty_midpoint_count += 1
+            self.get_logger().info("Empty midpoint")
+            self.update_midpoint = False
         else:
+            self.update_midpoint = True
+            self.person_tracked_midpoint = tmp
             self.midpoint_queue.append(self.person_tracked_midpoint)
             self.empty_midpoint_count = 0
-
-        
-        #self.get_logger().info(f'midpoint {self.person_tracked_midpoint}')
-         
-        self.correction = self.pid.compute(self.person_tracked_midpoint)
+            self.get_logger().info(f'midpoint {self.person_tracked_midpoint}')
+            self.correction = self.pid.compute(self.person_tracked_midpoint)
 
     def direction_person_lost(self):
         """Function to determine whether the drone should rotate left, right, up or down to find the lost person"""
@@ -135,11 +149,20 @@ class TrackPerson(Node):
             self.get_logger().info(f"\nNot enough midpoints received yet to predict the person's position\n")
 
 
-
-               
+############################Second subscriber#######################################################################3333
+            
+    def key_pressed_subscriber_callback(self,msg):
+        self.key_pressed = msg.data
+                      
 ######################### Publisher #####################################################################################################
     def commands_callback(self):
-        """This function sends appropriate to the drone in order to keep the tracked person within the camera's field while ensuring safety"""
+
+        self.get_keyboard_input()
+        self.update_commands()
+
+    def update_commands(self):
+        """This function makes appropriate commands messages in order to keep the tracked person within the camera's field while ensuring safety"""
+        
         self.commands_msg = Twist()
         self.commands_msg.linear.x = 0.0
         self.commands_msg.linear.y = 0.0
@@ -147,9 +170,9 @@ class TrackPerson(Node):
         self.commands_msg.angular.x = 0.0
         self.commands_msg.angular.y = 0.0
         self.commands_msg.angular.z = 0.0
-        self.get_logger().info(f"\nself.person_lost :{self.person_lost()}\n")
-        self.get_logger().info(f"\nself.empty_midpoint_count :{self.empty_midpoint_count}\n")
-
+        #self.get_logger().info(f"\nself.person_lost :{self.person_lost()}\n")
+        #self.get_logger().info(f"\nself.empty_midpoint_count :{self.empty_midpoint_count}\n")
+    
         if self.person_lost():
 
             #self.get_logger().info("\nWalaheiiiiiiiiiii\nWalaheiiiiiiiiiii\nWalaheiiiiiiiiiii\n")
@@ -163,34 +186,24 @@ class TrackPerson(Node):
             elif direction == "right":
                 print("Rotate right")
                 self.rotation(-pi,2*pi)
-                
-
-           # elif direction == "up":
-                #self.commands_msg.linear.y += 0.5
-            #    print("go up")
-
-            #elif direction == "down":
-                #self.commands_msg.linear.y -= 0.5
-            #    print("go down") 
             
             else:
                 self.get_logger().info(f'No trajectory can be found')
 
         else:
             
-            if self.correction is not None:
+            if self.person_tracked_midpoint is not None and self.correction is not None :
                 correction_x, correction_y = self.correction
                 self.get_logger().info(f'Correction x:{correction_x}, y:{correction_y}')
                 self.get_logger().info(f'midpoint {self.person_tracked_midpoint}')
 
-                if self.empty_midpoint():
-                    self.get_logger().info('Empty midpoint')
-
-                elif self.person_tracked_midpoint.x < 0.4:#correction_x < -0.6 : #Here I don't put 0 to avoid having the drone always moving
+                if self.person_tracked_midpoint.x < 0.4:#correction_x < -0.6 : #Here I don't put 0 to avoid having the drone always moving
                     self.get_logger().info("move left")
                     #print("move right")
                     #self.commands_msg.linear.y -= 0.3  #not correct.......probably
                     self.commands_msg.linear.y = 0.3
+                     
+
 
                 elif self.person_tracked_midpoint.x > 0.6:#correction_x > 0.6 :
                     self.get_logger().info("move right")
@@ -198,7 +211,7 @@ class TrackPerson(Node):
                     #self.commands_msg.linear.y += 0.3  #not correct......probably
                     self.commands_msg.linear.y = -0.3
 
-                self.publisher_commands.publish(self.commands_msg) 
+            self.publisher_commands.publish(self.commands_msg) 
            
             #if correction_y < -0.6 :
             #    print("move down")
@@ -217,7 +230,8 @@ class TrackPerson(Node):
                  #   self.move_up -= 1
                 #else:
                 #    self.commands_msg.linear.z += 0.0
-        
+
+
     def person_lost(self):
         """Function to call when someone is lost.
         Returns true when the person is lost and False else."""  
@@ -231,29 +245,35 @@ class TrackPerson(Node):
         if self.commands_msg is not None:
             current_angle = 0
             #target_angle = 2*pi
-
             self.commands_msg.angular.z = angular_speed#pi
 
             t0 = self.get_clock().now()
 
             while abs(current_angle) <= abs(target_angle): 
-                if not self.empty_midpoint:
+                if self.update_midpoint:
                     self.empty_midpoint_count = 0
                     break
                 self.publisher_commands.publish(self.commands_msg) 
                 t1 = self.get_clock().now()
 
                 current_angle = self.commands_msg.angular.z * ((t1-t0).to_msg().sec)
-
+            self.publisher_land.publish(Empty())
             self.get_logger().info(f"rotation! angular.z is {self.commands_msg.angular.z} and current_angle is {current_angle}")
 
-    def empty_midpoint(self):
+    def empty_midpoint(self, midpoint):
         """Function to test if the current midpoint is empty (x==0 and y==0). 
-        Returns True if the midpoint is empty, and false else"""
-        if self.person_tracked_midpoint.x == 0 and self.person_tracked_midpoint.y == 0:
+        Returns True if the midpoint is empty, and false else
+        Precondition : midpoint is not None and is of type PointMsg"""
+        if midpoint.x == 0 and midpoint.y == 0:
             return True
         else:
-            return False               
+            return False  
+
+    def land_takeoff(self):
+        """Prompts the drone to land or takeoff, depending on the messages received"""
+        
+
+            
 ###################################################################################################################################       
   
 
@@ -331,5 +351,16 @@ def main(args=None):
                 self.publisher_commands.publish(msg) 
                 t1 = self.get_clock().now()
             self.get_logger().info(f"movement  {direction}!!")
+
+
+                
+
+           # elif direction == "up":
+                #self.commands_msg.linear.y += 0.5
+            #    print("go up")
+
+            #elif direction == "down":
+                #self.commands_msg.linear.y -= 0.5
+            #    print("go down") 
 """  
 
