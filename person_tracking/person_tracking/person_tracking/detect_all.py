@@ -89,6 +89,7 @@ class DetectAll(PluginBase):
         self.frame_counter += 1
         self.image_raw = self.cv_bridge.imgmsg_to_cv2(img,"rgb8")
         self.image_all_detected = self.detection(self.image_raw)
+        self.pg_interface.update_bg_image(img)
         
 
         
@@ -150,7 +151,7 @@ class DetectAll(PluginBase):
             return 
         if keys[matching_keys["l"]]:
             msg.data = "l"
-            self.publisher_land.publish(msg)
+            self.publisher_key_pressed.publish(msg)
             return
 
     def tick(self) -> NodeState:
