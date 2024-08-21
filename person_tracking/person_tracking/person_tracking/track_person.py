@@ -68,13 +68,20 @@ class TrackPerson(Node):
        
         self.person_tracked_midpoint = None
 
+        self.prev_midpoint = None 
+
         self.commands_msg = None
 
         self.correction = None
-
+        
+        #Queue to keep the last nonempty midpoints. Help to calculate the trajectory of the person before he got lost
         self.midpoint_queue = deque(maxlen=self.max_length_midpoint_queue)
         
         self.empty_midpoint_count = 0 #variable to count the amount of empty messages received. If this number is higher than a certain number, the person is considered lost.
+        
+        #Counter for self.persont_tracked_midpoint in the update message function.
+        #If the midpoint is the same after a certain number of calls to the function, the connection might be broken. so we send empty command messages
+        self.connection_lost_midpoint_unchanged_counter = 0  
         
         self.update_midpoint = False #is true when we receive a new midpoint that is different than (0,0)
 
@@ -86,8 +93,7 @@ class TrackPerson(Node):
     def listener_callback(self, msg):
         """Callback function for the subscriber node (to topic /person_tracked).
         Receives the midpoint of the bounding box surrounding the person tracked"""
-        
-        #self.get_logger().info('Midpoint received')
+        self.get_logger().info('Midpoint received')
         tmp = msg.middle_point
 
         if self.empty_midpoint(tmp):
@@ -158,9 +164,8 @@ class TrackPerson(Node):
         self.land_takeoff()
         self.update_commands()
 
-    def update_commands(self):
+    def update_commands(self)->None:
         """This function makes appropriate commands messages in order to keep the tracked person within the camera's field while ensuring safety"""
-        
         self.commands_msg = Twist()
         self.commands_msg.linear.x = 0.0
         self.commands_msg.linear.y = 0.0
@@ -168,9 +173,15 @@ class TrackPerson(Node):
         self.commands_msg.angular.x = 0.0
         self.commands_msg.angular.y = 0.0
         self.commands_msg.angular.z = 0.0
-        #self.get_logger().info(f"\nself.person_lost :{self.person_lost()}\n")
-        #self.get_logger().info(f"\nself.empty_midpoint_count :{self.empty_midpoint_count}\n")
-    
+
+        self.get_logger().info(f"\nself.person_lost :{self.person_lost()}\n")
+        self.get_logger().info(f"\nself.empty_midpoint_count :{self.empty_midpoint_count}\n")
+
+        #check if the connection is still passing (meaning self.person_tracked_midpoint and hence self.empty_midpoint_count are updated in the listener callback)
+        if not self.check_midpoint_changed():
+            self.publisher_commands.publish(self.commands_msg) 
+            return None
+        
         if self.person_lost():
 
             #self.get_logger().info("\nWalaheiiiiiiiiiii\nWalaheiiiiiiiiiii\nWalaheiiiiiiiiiii\n")
@@ -178,13 +189,13 @@ class TrackPerson(Node):
             
             if direction == "left":
                 print("Rotate left") 
-                complete_rotation = self.rotation(pi/5,2*pi)
+                complete_rotation = self.rotation(pi/15,2*pi)
                 if complete_rotation:  #if complete rotation is False or None, we do nothing
                     self.publisher_land.publish(Empty())
             
             elif direction == "right":
                 print("Rotate right")
-                complete_rotation =  self.rotation(-pi/5,2*pi)
+                complete_rotation =  self.rotation(-pi/15,2*pi)
                 if complete_rotation:
                     self.publisher_land.publish(Empty())
             
@@ -196,20 +207,19 @@ class TrackPerson(Node):
             if self.person_tracked_midpoint is not None and self.correction is not None :
                 correction_x, correction_y = self.correction
                 self.get_logger().info(f'Correction x:{correction_x}, y:{correction_y}')
-                self.get_logger().info(f'midpoint {self.person_tracked_midpoint}')
+                #self.get_logger().info(f'midpoint {self.person_tracked_midpoint}')
 
                 if self.person_tracked_midpoint.x < 0.3:#correction_x < -0.6 : #Here I don't put 0 to avoid having the drone always moving
-                    self.get_logger().info("move left") #(a in keyboard mode control station) )
+                    self.get_logger().info("move left") #(a in keyboard mode control station) 
                     self.commands_msg.linear.y = 0.2
                      
-
-
                 elif self.person_tracked_midpoint.x > 0.7:#correction_x > 0.6 :
-                    self.get_logger().info("move right") #(d in keyboard mode control station              
+                    self.get_logger().info("move right") #(d in keyboard mode control station )             
                     self.commands_msg.linear.y = -0.2
 
             self.publisher_commands.publish(self.commands_msg) 
-           
+        
+        return None
             #if correction_y < -0.6 :
             #    print("move down")
                 #print("move up")
@@ -267,15 +277,45 @@ class TrackPerson(Node):
         else:
             return False  
 
-    def land_takeoff(self):
+    def land_takeoff(self)->None:
         """Prompts the drone to land or takeoff, depending on the messages received"""
         if self.key_pressed is not None:
             if self.key_pressed == "t":
                 self.publisher_takeoff.publish(Empty())
-                return
+                return None
             if self.key_pressed == "l":
                 self.publisher_land.publish(Empty())
-                return
+                return None
+
+    def equal_point_msg(self, p1, p2)->bool:
+        """function to compare to point messages (PointMsg).
+        Returns True if they have the same coordinates, and False else"""
+        if isinstance(p1, PointMsg) and isinstance(p2, PointMsg):
+            return p1.x == p2.x and p1.y == p2.y
+        else:
+            raise TypeError("Error in function equal_point_msg, tried to compare two objects that are not of type PointMsg")
+
+    def check_midpoint_changed(self)->bool:
+        """Function to check if the self.person_tracked_midpoint changed. Returns True if it stayed the same for less than max_empty_midpoint_before_lost, and False if it stayed the same for more.
+        """
+        if self.prev_midpoint is None and self.person_tracked_midpoint is not None:
+            self.prev_midpoint = self.person_tracked_midpoint
+            return True
+
+        elif self.prev_midpoint is not None :
+            if self.equal_point_msg(self.prev_midpoint, self.person_tracked_midpoint):
+                self.connection_lost_midpoint_unchanged_counter += 1
+            else:
+                self.connection_lost_midpoint_unchanged_counter = 0
+        
+        self.prev_midpoint = self.person_tracked_midpoint
+
+        if self.connection_lost_midpoint_unchanged_counter <= self.max_empty_midpoint_before_lost :
+            return True
+        else: 
+            return False
+        
+
 
 
 
