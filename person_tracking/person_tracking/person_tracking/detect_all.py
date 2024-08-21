@@ -75,6 +75,9 @@ class DetectAll(PluginBase):
         #Pygame interface
         self.pg_interface = Interface()
 
+        #Variable to perform object detection on only some frames
+        self.process = 0
+
 
 
 
@@ -84,14 +87,13 @@ class DetectAll(PluginBase):
         For each image received, it saves in the log that an image has been received.
         Then converts that image into cv2 format before performing object detection on that image and saving 
         the result in self.image_all_detected"""
-        
-        self.get_logger().info(f"Frame N°{self.frame_counter} received")
-        self.frame_counter += 1
-        self.image_raw = self.cv_bridge.imgmsg_to_cv2(img,"rgb8")
-        self.image_all_detected = self.detection(self.image_raw)
-        self.pg_interface.update_bg_image(img)
-        
-
+        if self.process % 4 == 0:
+            self.get_logger().info(f"Frame N°{self.frame_counter} received")
+            self.frame_counter += 1
+            self.image_raw = self.cv_bridge.imgmsg_to_cv2(img,"rgb8")
+            self.image_all_detected = self.detection(self.image_raw)
+            self.pg_interface.update_bg_image(img)
+        self.process += 1
         
     def detection(self,frame):
         """Function to perform person object detection on a single frame.
