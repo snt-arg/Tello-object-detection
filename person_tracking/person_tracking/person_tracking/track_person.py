@@ -178,12 +178,15 @@ class TrackPerson(Node):
             
             if direction == "left":
                 print("Rotate left") 
-                self.rotation(pi,2*pi)
-                #to del
+                complete_rotation = self.rotation(pi/5,2*pi)
+                if complete_rotation:  #if complete rotation is False or None, we do nothing
+                    self.publisher_land.publish(Empty())
             
             elif direction == "right":
                 print("Rotate right")
-                self.rotation(-pi,2*pi)
+                complete_rotation =  self.rotation(-pi/5,2*pi)
+                if complete_rotation:
+                    self.publisher_land.publish(Empty())
             
             else:
                 self.get_logger().info(f'No trajectory can be found')
@@ -195,19 +198,15 @@ class TrackPerson(Node):
                 self.get_logger().info(f'Correction x:{correction_x}, y:{correction_y}')
                 self.get_logger().info(f'midpoint {self.person_tracked_midpoint}')
 
-                if self.person_tracked_midpoint.x < 0.4:#correction_x < -0.6 : #Here I don't put 0 to avoid having the drone always moving
-                    self.get_logger().info("move left")
-                    #print("move right")
-                    #self.commands_msg.linear.y -= 0.3  #not correct.......probably
-                    self.commands_msg.linear.y = 0.3
+                if self.person_tracked_midpoint.x < 0.3:#correction_x < -0.6 : #Here I don't put 0 to avoid having the drone always moving
+                    self.get_logger().info("move left") #(a in keyboard mode control station) )
+                    self.commands_msg.linear.y = 0.2
                      
 
 
-                elif self.person_tracked_midpoint.x > 0.6:#correction_x > 0.6 :
-                    self.get_logger().info("move right")
-                    #print("move left")                
-                    #self.commands_msg.linear.y += 0.3  #not correct......probably
-                    self.commands_msg.linear.y = -0.3
+                elif self.person_tracked_midpoint.x > 0.7:#correction_x > 0.6 :
+                    self.get_logger().info("move right") #(d in keyboard mode control station              
+                    self.commands_msg.linear.y = -0.2
 
             self.publisher_commands.publish(self.commands_msg) 
            
@@ -238,8 +237,9 @@ class TrackPerson(Node):
         else: 
             return False    
  
-    def rotation(self, angular_speed, target_angle):
-        """Function to send rotation commands to the drone. """
+    def rotation(self, angular_speed, target_angle)->bool|None:
+        """Function to send rotation commands to the drone. 
+        Returns True if the drone did a complete rotation (no one was found) and False else"""
         if self.commands_msg is not None:
             current_angle = 0
             #target_angle = 2*pi
@@ -250,14 +250,14 @@ class TrackPerson(Node):
             while abs(current_angle) <= abs(target_angle): 
                 if self.update_midpoint:
                     self.empty_midpoint_count = 0
-                    break
+                    return False
                 self.publisher_commands.publish(self.commands_msg) 
                 t1 = self.get_clock().now()
 
                 current_angle = self.commands_msg.angular.z * ((t1-t0).to_msg().sec)
-            self.publisher_land.publish(Empty())
+            return True
             self.get_logger().info(f"rotation! angular.z is {self.commands_msg.angular.z} and current_angle is {current_angle}")
-
+        
     def empty_midpoint(self, midpoint):
         """Function to test if the current midpoint is empty (x==0 and y==0). 
         Returns True if the midpoint is empty, and false else
