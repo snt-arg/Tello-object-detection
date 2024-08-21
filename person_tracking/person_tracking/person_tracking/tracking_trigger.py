@@ -53,7 +53,7 @@ class TriggerTracking(Node):
 
         #publishers
         self.publisher_to_track= self.create_publisher(PersonTracked,self.person_tracked_topic,10)
-        self.timer_1 = self.create_timer(0.1, self.person_tracked_callback)
+        self.timer_1 = self.create_timer(0.09, self.person_tracked_callback)
         
         #Used to convert cv2 frames into ROS Image messages and vice versa
         self.cv_bridge = CvBridge()
