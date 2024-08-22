@@ -89,11 +89,9 @@ class TrackPerson(Node):
 
         self.key_pressed = None #variable to contain key pressed on the Pygame GUI, either to land or takeoff
 
-        
+        self.flying = True#variable is True when the dron is flying and False if it landed
 
         
-
-
 
         
         
@@ -172,7 +170,8 @@ class TrackPerson(Node):
 ######################### Publisher #####################################################################################################
     def commands_callback(self):
         self.land_takeoff()
-        self.update_commands()
+        if self.flying:
+            self.update_commands()
 
     def update_commands(self)->None:
         """This function makes appropriate commands messages in order to keep the tracked person within the camera's field while ensuring safety"""
@@ -196,12 +195,12 @@ class TrackPerson(Node):
             if direction == "left":
                 print("Rotate left") 
                 #self.rotation(pi/2,2*pi)
-                rotation_thread_left = Thread(target=self.rotation,args=(pi/2,2*pi)).start()
+                rotation_thread_left = Thread(target=self.rotation,args=(pi/5,2*pi)).start()
             
             elif direction == "right":
                 print("Rotate right")
                 #self.rotation(-pi/2,2*pi)
-                rotation_thread_right = Thread(target=self.rotation,args=(-pi/2,2*pi)).start()  
+                rotation_thread_right = Thread(target=self.rotation,args=(-pi/5,2*pi)).start()  
 
             else:
                 self.get_logger().info(f'No trajectory can be found')
@@ -220,11 +219,11 @@ class TrackPerson(Node):
 
                 if self.person_tracked_midpoint.x < 0.3:#correction_x < -0.6 : #Here I don't put 0 to avoid having the drone always moving
                     self.get_logger().info("move left") #(a in keyboard mode control station) 
-                    self.commands_msg.linear.y = 0.2
+                    self.commands_msg.linear.y = 0.22
                      
                 elif self.person_tracked_midpoint.x > 0.7:#correction_x > 0.6 :
                     self.get_logger().info("move right") #(d in keyboard mode control station )             
-                    self.commands_msg.linear.y = -0.2
+                    self.commands_msg.linear.y = -0.22
 
             self.publisher_commands.publish(self.commands_msg) 
         
@@ -264,21 +263,24 @@ class TrackPerson(Node):
             #target_angle = 2*pi
             self.commands_msg.angular.z = angular_speed#pi
 
+            self.get_logger().info(f"Before rotating,  angular.z is {self.commands_msg.angular.z} and current_angle is {current_angle}")
+
             t0 = self.get_clock().now()
 
             while abs(current_angle) <= abs(target_angle): 
-                self.get_logger().info(f"Found a person? {self.update_midpoint}")
+                #self.get_logger().info(f"Found a person? {self.update_midpoint}")
                 if self.update_midpoint:
                     self.empty_midpoint_count = 0
                     self.get_logger().info(f"While rotating, found a person to track")
                     return 
-                #self.publisher_commands.publish(self.commands_msg) 
+                self.publisher_commands.publish(self.commands_msg) 
                 t1 = self.get_clock().now()
 
                 current_angle = self.commands_msg.angular.z * ((t1-t0).to_msg().sec)
 
-            self.get_logger().info(f"rotation! angular.z is {self.commands_msg.angular.z} and current_angle is {current_angle}")
+            self.get_logger().info(f"After rotating ,angular.z is {self.commands_msg.angular.z} and current_angle is {current_angle}")
             self.publisher_land.publish(Empty()) #land if we found no one after a complete rotation
+            self.flying = False
             
 
     def empty_midpoint(self, midpoint):
@@ -295,9 +297,11 @@ class TrackPerson(Node):
         if self.key_pressed is not None:
             if self.key_pressed == "t":
                 self.publisher_takeoff.publish(Empty())
+                self.flying = True
                 return None
             if self.key_pressed == "l":
                 self.publisher_land.publish(Empty())
+                self.flying = False
                 return None
 
     def equal_point_msg(self, p1, p2)->bool:
