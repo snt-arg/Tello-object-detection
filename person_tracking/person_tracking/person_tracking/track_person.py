@@ -91,6 +91,8 @@ class TrackPerson(Node):
 
         self.flying = True#variable is True when the dron is flying and False if it landed
 
+        self.rotating = False #variable to check if the drone is rotating
+
         
 
         
@@ -170,8 +172,10 @@ class TrackPerson(Node):
 ######################### Publisher #####################################################################################################
     def commands_callback(self):
         self.land_takeoff()
-        if self.flying:
+        if self.flying and not self.rotating:
+            #command_thread = Thread(target=self.update_commands).start()
             self.update_commands()
+            
 
     def update_commands(self)->None:
         """This function makes appropriate commands messages in order to keep the tracked person within the camera's field while ensuring safety"""
@@ -194,13 +198,17 @@ class TrackPerson(Node):
 
             if direction == "left":
                 print("Rotate left") 
-                #self.rotation(pi/2,2*pi)
-                rotation_thread_left = Thread(target=self.rotation,args=(pi/5,2*pi)).start()
+                #self.rotation(pi/5,2*pi)
+                rotation_thread_left = Thread(target=self.rotation,args=(pi/7,2*pi))
+                rotation_thread_left.start()
+                #rotation_thread_left.join()
             
             elif direction == "right":
                 print("Rotate right")
-                #self.rotation(-pi/2,2*pi)
-                rotation_thread_right = Thread(target=self.rotation,args=(-pi/5,2*pi)).start()  
+                #self.rotation(-pi/5,2*pi)
+                rotation_thread_right = Thread(target=self.rotation,args=(-pi/7,2*pi))
+                rotation_thread_right.start()  
+                #rotation_thread_right.join()
 
             else:
                 self.get_logger().info(f'No trajectory can be found')
@@ -259,9 +267,11 @@ class TrackPerson(Node):
         """Function to send rotation commands to the drone. 
         Returns True if the drone did a complete rotation (no one was found) and False else"""
         if self.commands_msg is not None:
+            self.rotating = True
             current_angle = 0
             #target_angle = 2*pi
             self.commands_msg.angular.z = angular_speed#pi
+
 
             self.get_logger().info(f"Before rotating,  angular.z is {self.commands_msg.angular.z} and current_angle is {current_angle}")
 
@@ -270,6 +280,7 @@ class TrackPerson(Node):
             while abs(current_angle) <= abs(target_angle): 
                 #self.get_logger().info(f"Found a person? {self.update_midpoint}")
                 if self.update_midpoint:
+                    self.rotating = False
                     self.empty_midpoint_count = 0
                     self.get_logger().info(f"While rotating, found a person to track")
                     return 
@@ -279,6 +290,7 @@ class TrackPerson(Node):
                 current_angle = self.commands_msg.angular.z * ((t1-t0).to_msg().sec)
 
             self.get_logger().info(f"After rotating ,angular.z is {self.commands_msg.angular.z} and current_angle is {current_angle}")
+            self.rotating = False
             self.publisher_land.publish(Empty()) #land if we found no one after a complete rotation
             self.flying = False
             
