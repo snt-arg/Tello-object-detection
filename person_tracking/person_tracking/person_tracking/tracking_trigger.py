@@ -104,7 +104,7 @@ class TriggerTracking(Node):
     def bounding_boxes_listener_callback(self, boxes_msg):
         """Callback function for the subscriber node (to topic /all_bounding_boxes).
         For each bounding box received, save it in a variable for processing"""
-        self.get_logger().info('Bounding boxes received')
+        self.get_logger().info('Bounding boxes message received')
         self.boxes = boxes_msg
         
         
@@ -125,7 +125,10 @@ class TriggerTracking(Node):
         if self.boxes is None:
             self.get_logger().info("No bounding box received")
 
-        elif self.boxes.bounding_boxes:#empty lists in Python can be evaluated as a boolean False. Hence this test is to make sure that boxes are received
+        else:
+            if not self.boxes.bounding_boxes:#empty lists in Python can be evaluated as a boolean False. Hence this test is to make sure that boxes are received
+                self.get_logger().info(f"The list of bounding boxes is empty. Hence, maybe no detection were made.")
+
             if self.tracking == False: #if no one has done the trigger move yet
                 if self.check_gesture(True):
                     self.get_logger().info("\n Tracking Started!!")
@@ -137,7 +140,7 @@ class TriggerTracking(Node):
                     self.person_tracked_right_hand_point = self.landmarks.right_hand.normalized_landmarks[0]
                     self.get_logger().info(f"{self.landmarks.right_hand.gesture} {self.landmarks.left_hand.gesture}")
                     
-                    #Instantiating the midepoint ROS message
+                    #Instantiating the midpoint ROS message
                     self.person_tracked_midpoint = PointMsg()
                     #self.video.write(cv2.line(self.image_all_detected,(int(middle_left.x*self.width),int(middle_left.y*self.height)),(int(middle_right.x*self.width),int(middle_right.y*self.height)),(255,0,0),4))
                     
@@ -148,6 +151,7 @@ class TriggerTracking(Node):
                         self.publisher_to_track.publish(self.person_tracked_msg)                  
 
             else: #if someone did the trigger move yet 
+            
                 if not self.person_lost(): #if the tracked person is not lost (is still within the camera's field)
 
                     if self.check_gesture(False):
@@ -162,13 +166,21 @@ class TriggerTracking(Node):
                         self.get_logger().info(f"{self.landmarks.right_hand.gesture} {self.landmarks.left_hand.gesture}")
                 
                 else: #if the tracked person is lost, we start tracking the person detected by our YOLO model with the highest confidence score (the person from the first bounding box)
-                    highest_conf_box = self.boxes.bounding_boxes[0]
-                    self.person_tracked_midpoint.x = (highest_conf_box.top_left.x / 2) + (highest_conf_box.bottom_right.x / 2) 
-                    self.person_tracked_midpoint.y = (highest_conf_box.top_left.y / 2) + (highest_conf_box.bottom_right.y / 2)
-                    self.empty_midpoint_count = 0
+                    if self.boxes.bounding_boxes:#empty lists in Python can be evaluated as a boolean False. Hence this test is to make sure that boxes are received
+                        highest_conf_box = self.boxes.bounding_boxes[0]
+                        self.person_tracked_midpoint = PointMsg()
+                        self.person_tracked_midpoint.x = (highest_conf_box.top_left.x / 2) + (highest_conf_box.bottom_right.x / 2) 
+                        self.person_tracked_midpoint.y = (highest_conf_box.top_left.y / 2) + (highest_conf_box.bottom_right.y / 2)
+                        self.empty_midpoint_count = 0
+                        self.get_logger().info(f"\n#######################################\nStarted tracking a new person!\n#############################################\n")
+                        self.get_logger().info(f'So the midpoint of that person is {self.person_tracked_midpoint}') 
+                        #self.person_tracked_msg = PersonTracked()
+                        self.person_tracked_msg.middle_point = self.person_tracked_midpoint
+                        self.publisher_to_track.publish(self.person_tracked_msg)    
 
-        else:
-            self.get_logger().info(f"The list of bounding boxes is empty. Hence, maybe no detection were made.")
+
+        
+           
 
 
 
@@ -227,8 +239,10 @@ class TriggerTracking(Node):
                             self.get_logger().info(f'First time midpoint updated to {self.person_tracked_msg.middle_point} \n')#{self.person_tracked_midpoint}')
 
                             return  
-        if self.person_tracked_midpoint is None:
+                            
+        if self.person_tracked_midpoint.x == 0 and self.person_tracked_midpoint.y == 0:
             self.get_logger().info(f"\nCannot find the person who did the gesture")
+            #self.tracking = False
 
     
     def update_middlepoint(self)->None:
