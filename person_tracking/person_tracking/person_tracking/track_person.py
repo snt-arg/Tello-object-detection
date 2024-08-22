@@ -24,8 +24,10 @@ from collections import deque
 
 from math import pi
 
+from threading import Thread
 
 
+##NB : all directions : left, right... are from the drone's perspective
 
 class TrackPerson(Node):
 
@@ -85,7 +87,13 @@ class TrackPerson(Node):
         
         self.update_midpoint = False #is true when we receive a new midpoint that is different than (0,0)
 
-        self.key_pressed = None
+        self.key_pressed = None #variable to contain key pressed on the Pygame GUI, either to land or takeoff
+
+        
+
+        
+
+
 
         
         
@@ -108,7 +116,7 @@ class TrackPerson(Node):
             self.get_logger().info(f'midpoint {self.person_tracked_midpoint}')
             self.correction = self.pid.compute(self.person_tracked_midpoint)
 
-    def direction_person_lost(self):
+    def direction_person_lost(self)->str|None:
         """Function to determine whether the drone should rotate left, right, up or down to find the lost person"""
         if len(self.midpoint_queue) == self.max_length_midpoint_queue:
             point_1 = self.midpoint_queue[1] #most recent midpoint
@@ -152,6 +160,8 @@ class TrackPerson(Node):
 
         else:
             self.get_logger().info(f"\nNot enough midpoints received yet to predict the person's position\n")
+        
+        return None
 
 
 ############################Second subscriber#######################################################################3333
@@ -177,32 +187,31 @@ class TrackPerson(Node):
         self.get_logger().info(f"\nself.person_lost :{self.person_lost()}\n")
         self.get_logger().info(f"\nself.empty_midpoint_count :{self.empty_midpoint_count}\n")
 
-        #check if the connection is still passing (meaning self.person_tracked_midpoint and hence self.empty_midpoint_count are updated in the listener callback)
-        if not self.check_midpoint_changed():
-            self.publisher_commands.publish(self.commands_msg) 
-            return None
         
         if self.person_lost():
 
             #self.get_logger().info("\nWalaheiiiiiiiiiii\nWalaheiiiiiiiiiii\nWalaheiiiiiiiiiii\n")
-            direction = self.direction_person_lost()
-            
+            direction : str = self.direction_person_lost()
+
             if direction == "left":
                 print("Rotate left") 
-                complete_rotation = self.rotation(pi/15,2*pi)
-                if complete_rotation:  #if complete rotation is False or None, we do nothing
-                    self.publisher_land.publish(Empty())
+                #self.rotation(pi/2,2*pi)
+                rotation_thread_left = Thread(target=self.rotation,args=(pi/2,2*pi)).start()
             
             elif direction == "right":
                 print("Rotate right")
-                complete_rotation =  self.rotation(-pi/15,2*pi)
-                if complete_rotation:
-                    self.publisher_land.publish(Empty())
-            
+                #self.rotation(-pi/2,2*pi)
+                rotation_thread_right = Thread(target=self.rotation,args=(-pi/2,2*pi)).start()  
+
             else:
                 self.get_logger().info(f'No trajectory can be found')
 
         else:
+            #check if the connection is still passing (meaning self.person_tracked_midpoint and hence self.empty_midpoint_count are updated in the listener callback)
+            if not self.check_midpoint_changed():
+                self.publisher_commands.publish(self.commands_msg) 
+                return None
+
             
             if self.person_tracked_midpoint is not None and self.correction is not None :
                 correction_x, correction_y = self.correction
@@ -247,7 +256,7 @@ class TrackPerson(Node):
         else: 
             return False    
  
-    def rotation(self, angular_speed, target_angle)->bool|None:
+    def rotation(self, angular_speed, target_angle)->None:
         """Function to send rotation commands to the drone. 
         Returns True if the drone did a complete rotation (no one was found) and False else"""
         if self.commands_msg is not None:
@@ -258,16 +267,20 @@ class TrackPerson(Node):
             t0 = self.get_clock().now()
 
             while abs(current_angle) <= abs(target_angle): 
+                self.get_logger().info(f"Found a person? {self.update_midpoint}")
                 if self.update_midpoint:
                     self.empty_midpoint_count = 0
-                    return False
-                self.publisher_commands.publish(self.commands_msg) 
+                    self.get_logger().info(f"While rotating, found a person to track")
+                    return 
+                #self.publisher_commands.publish(self.commands_msg) 
                 t1 = self.get_clock().now()
 
                 current_angle = self.commands_msg.angular.z * ((t1-t0).to_msg().sec)
-            return True
+
             self.get_logger().info(f"rotation! angular.z is {self.commands_msg.angular.z} and current_angle is {current_angle}")
-        
+            self.publisher_land.publish(Empty()) #land if we found no one after a complete rotation
+            
+
     def empty_midpoint(self, midpoint):
         """Function to test if the current midpoint is empty (x==0 and y==0). 
         Returns True if the midpoint is empty, and false else
