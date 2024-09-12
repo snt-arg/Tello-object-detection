@@ -38,10 +38,18 @@ To settle the environment to run this project on your side, you must:
     [For more information on how to install YOLOv8](https://github.com/ultralytics/ultralytics?tab=readme-ov-file#documentation).
   
 - Install ROS 2:\
-  For this project, we used ROS 2 Humble Hawksbill. The platforms supported are Ubuntu 22.04, RHEL-8, Windows 10 and macOS(building from source).
+  For this project, we used ROS 2 Humble Hawksbill. The platforms supported are Ubuntu 22.04, RHEL-8, Windows 10, and macOS(building from source).
   To install on Ubuntu 22.04 from binary packages(recommended), follow [this tutorial](https://docs.ros.org/en/humble/Installation/Ubuntu-Install-Debians.html).
   For the other platforms, more information is found [here](https://docs.ros.org/en/humble/Installation.html).
 
+- Install DJITelloPy:\
+  The [tello](https://github.com/snt-arg/Tello-object-detection/tree/main/ros_workspace/tello) package requires [DJITelloPy](https://github.com/damiafuentes/DJITelloPy) to establish the connection to the drone.
+  It can be installed with
+  ```sh
+  pip install djitellopy
+  ```
+  Again, it is advised to install all requirements from the requirement file.
+  
 ## 🧑‍💻️🏃 Run code
 This repository is organized into 4 repertories:
 - *config* where all configuration files are kept.
