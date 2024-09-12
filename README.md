@@ -10,7 +10,8 @@ This repository contains two ROS packages. The first one, [tello](https://github
 - [🧾 License](#license)
 
 ## 🛠️ Installation <a id="installation"></a>
-We strongly advise running this project on [Ubuntu 22.04](https://ubuntu.com/tutorials/install-ubuntu-desktop#1-overview) to ensure compatibility with the ROS distribution we used.
+We strongly advise running this project on [Ubuntu 22.04](https://ubuntu.com/tutorials/install-ubuntu-desktop#1-overview) to make sure it is compatible with the [ROS distribution](https://docs.ros.org/en/humble/index.html) we used.
+
 Also, make sure that the system used allows for connection to the drone (We encountered problems while trying to connect the drone to [WSL](https://learn.microsoft.com/en-us/windows/wsl/about).)
 
 To settle the environment to run this project on your side, you must:
@@ -20,7 +21,7 @@ To settle the environment to run this project on your side, you must:
   ```
   You need to have [git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git) installed.
   
-- Install the requirements specified in [requirements.txt](https://github.com/maeri18/YOLOV8-BSP2/blob/main/requirements.txt)\
+- Install the requirements specified in [requirements.txt](https://github.com/snt-arg/Tello-object-detection/blob/main/requirements.txt)\
   If you possess, [pip](https://pypi.org/project/pip/), you can run the command
   ```sh
   pip install -r requirements.txt
@@ -42,19 +43,16 @@ To settle the environment to run this project on your side, you must:
   For the other platforms, more information is found [here](https://docs.ros.org/en/humble/Installation.html).
 
 ## 🧑‍💻️🏃 Run code
-This repository is organized in 4 repertories:
-- *config* where all configuration files are kept
-- *media* containing some videos on which we ran our object detection module to test its functionning.
-- *object_detection* contains several python scripts to perform object detection from a video or the camera.
-  You can run the file [filter_class.py](https://github.com/snt-arg/Tello-object-detection/blob/main/object_detection/filter_class.py) on one of your videos and you should have the output video (output.mp4) in the same directory.
-  To do so, you can specify in the last line of code (where the filter_detection function is called) the classes of objects you are interested in, and the path to your video.
-- *ros_workspace* contains robotic package (tello) we implemented to perform object detection with a DJI Tello drone.
-  To run the *tello* package, you have to follow fulfill all installation requirements listed above.
+This repository is organized into 4 repertories:
+- *config* where all configuration files are kept.
+- *media* containing some videos on which we ran our object detection module to test its functioning.
+- *ros_workspace* contains a robotic package ([tello](https://github.com/snt-arg/Tello-object-detection/tree/main/ros_workspace/tello)) we implemented to perform object detection with a DJI Tello drone.
+  To run the *tello* package, you have to fulfill all installation requirements listed above.
   Then in a terminal,
   - Move to the ros_workspace directory after cloning the repository
   - Source your ROS distribution using
   - Build the Tello package
-  - Make sure you are connected to the drone
+  - Check your WIFI connection to make sure that your computer is connected to the drone.
   - Open three other terminals and source the ROS distribution and the Tello package in all of them
       * In the first one, run the drone's camera publisher node using
         ```sh
