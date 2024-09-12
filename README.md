@@ -81,7 +81,7 @@ This repository is organized into 4 repertories:
     ```sh
     source /opt/ros/<ros-distro>/setup.bash
     ```
-    Replace *<ros-distro>* with your ROS distribution name.
+    Replace * <ros-distro> * with your ROS distribution name.
   - Build the Tello package
     ```sh
     colcon build --packages-select tello
