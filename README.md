@@ -46,8 +46,8 @@ To settle the environment to run this project on your side, you must:
   git clone https://github.com/snt-arg/hand_gestures_plugin.git
   ```
 
-  NB:
-      * YOLOv8 :\
+  NB:\
+   * YOLOv8 :\
         YOLOv8 should be installed if you installed all packages in [requirements.txt](https://github.com/snt-arg/Tello-object-detection/blob/main/requirements.txt).\
       If not, you can run
       ```sh
