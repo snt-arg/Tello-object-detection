@@ -74,11 +74,25 @@ This repository is organized into 4 repertories:
   To run the *tello* package, you have to fulfill all installation requirements listed above.
   Then in a terminal,
   - Move to the ros_workspace directory after cloning the repository
+    ```sh
+    cd /path/to/ros_workspace
+    ```
   - Source your ROS distribution using
+    ```sh
+    source /opt/ros/<ros-distro>/setup.bash
+    ```
+    Replace *<ros-distro>* with your ROS distribution name.
   - Build the Tello package
-  - Check your WIFI connection to make sure that your computer is connected to the drone.
-  - Open three other terminals and source the ROS distribution and the Tello package in all of them
-      * In the first one, run the drone's camera publisher node using
+    ```sh
+    colcon build --packages-select tello
+    ```
+  - Turn the drone on and check your WIFI connection to make sure that your computer is connected to the drone.
+  - Open three other terminals and still in the workspace repertory, source the ROS distribution and the Tello package in all of them with
+      ```sh
+      source ./install/setup.bash
+      ```
+      Then,
+      * In the first terminal, run the drone's camera publisher node using
         ```sh
         ros2 run tello camera_pub
         ```
@@ -86,17 +100,18 @@ This repository is organized into 4 repertories:
         ```sh
         ros2 run tello detected_pub
         ```
-      * In the third terminal, you can use visualization tools such as rqt_image_view to view the image messages published on each topic (*image_raw* for raw images coming from the drone, and *image_detected* for images on which object detection was performed. )
+      * In the third terminal, you can use visualization tools such as [rqt_image_view](https://wiki.ros.org/rqt_image_view) to view the image messages published on each topic (*image_raw* for raw images coming from the drone, and *image_detected* for images on which object detection was performed. )
     
-
+- *person_tracking* contains the second package [person_tracking](https://github.com/snt-arg/Tello-object-detection/tree/main/person_tracking)
+   
 ## 👨🏻‍💻📝Implementation <a id="implementation"></a>
-- [tello](https://github.com/snt-arg/Tello-object-detection/tree/main/ros_workspace/tello)
+- [tello](https://github.com/snt-arg/Tello-object-detection/tree/main/ros_workspace/tello)\
   This project uses a publisher/subscriber architecture to detect objects on a drone's camera video.
   The publisher node [camera_publisher.py](https://github.com/snt-arg/Tello-object-detection/blob/main/ros_workspace/tello/tello/camera_publisher.py) is in charge of connecting to the drone (using [DJITelloPy](https://github.com/damiafuentes/DJITelloPy)) and reading video frames from the drone's camera.
   These frames are then published on a topic name *image_raw*.
   The subscriber node [sub1.py](https://github.com/snt-arg/Tello-object-detection/blob/main/ros_workspace/tello/tello/sub1.py) receives frames published on *image_raw*, performs object detection on them, and republishes the new frames (with bounding boxes around objects) on *image_detected*.
 
-- [person_tracking](https://github.com/snt-arg/Tello-object-detection/tree/main/person_tracking)
+- [person_tracking](https://github.com/snt-arg/Tello-object-detection/tree/main/person_tracking)\
 ## 🧾 License <a id="license"></a>
 
 
