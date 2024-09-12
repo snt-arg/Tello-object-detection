@@ -7,7 +7,7 @@ This repository contains two ROS packages. The first one, [tello](https://github
 - [🛠 Installation](#installation)
 - [🧑‍💻️🏃 Run code](#run)
 - [👨🏻‍💻📝Implementation](#implementation)
-- [📈✨Improvements prospects](#improvements)
+- [📈✨Improvement prospects](#improvements)
 - [🧾 License](#license)
 
 ## 🛠️ Installation <a id="installation"></a>
@@ -103,7 +103,7 @@ This repository is organized into 4 directories:
         ```
       * In the third terminal, you can use visualization tools such as [rqt_image_view](https://wiki.ros.org/rqt_image_view) to view the image messages published on each topic (*image_raw* for raw images coming from the drone, and *image_detected* for images on which object detection was performed. )
     
-- *person_tracking* contains the second package [person_tracking](https://github.com/snt-arg/Tello-object-detection/tree/main/person_tracking). This package provides to a Tello drone with the functionality of tracking a person.\
+- *person_tracking* contains the second package [person_tracking](https://github.com/snt-arg/Tello-object-detection/tree/main/person_tracking). This package provides a Tello drone with the functionality of tracking a person in real-time.\
   To run the package, [YOLOv8](https://github.com/ultralytics/ultralytics), [ROS 2](https://docs.ros.org/en/humble/Installation), the [tello driver](https://github.com/snt-arg/tello_ros_driver) and [hand gesture package](https://github.com/snt-arg/hand_gestures_plugin) must be installed.\
   - Move to the workspace directory after cloning the repository
     ```sh
@@ -128,7 +128,7 @@ This repository is organized into 4 directories:
         ```sh
         ros2 launch tello_driver tello_driver.launch.py
         ```
-      * In the next three terminals run in each terminal the nodes in the person_tracking package
+      * In the next three terminals run  the nodes in the person_tracking package
         ```sh
         ros2 run person_tracking all_detected_node --ros-args -p standalone:=true
         ```
@@ -144,8 +144,6 @@ This repository is organized into 4 directories:
         ```
       * You can also use visualization tools such as [rqt_image_view](https://wiki.ros.org/rqt_image_view) to view the image messages published on each topic (*image_raw* for raw images coming from the drone, and *all_detected* for images on which person detection was performed.)
     
-
-  
    
 ## 👨🏻‍💻📝Implementation <a id="implementation"></a>
 - [tello](https://github.com/snt-arg/Tello-object-detection/tree/main/ros_workspace/tello)\
@@ -156,7 +154,20 @@ This repository is organized into 4 directories:
 
 - [person_tracking](https://github.com/snt-arg/Tello-object-detection/tree/main/person_tracking)\
 
-## 📈✨Improvements prospects <a id="improvements"></a>
+## 📈✨Improvement prospects <a id="improvements"></a>
+Current improvement prospects are related to the person tracking package.
+
+- Speed of the plugin:\
+  At its current state, while running the package one might experience lagging and a delayed processing of the frames. This inevitably makes the tracking impossible. An important improvement prospect for this package is to optimize the efficiency of the package.
+  
+- Keeping a certain distance from the target:\
+  For now, the package involves lateral movement and rotation of the drone to keep the target person within the field of view of the drone's camera. Hence, the next step is to keep the distance between the drone and the target within a certain range, for better and effective tracking.
+  
+- Safety of the drone and the people around:\
+  One of the most important aspect to consider when dealing with autonomous systems is trust, and trust in autonomous systems is highly linked to safety around the system. Thus, we consider implementing measures to enhance the safety of the drone and the people around it during the tracking.
+  
+- Integration to Tello_ws:\
+  This package is meant to be included in the [Tello_ws](https://github.com/snt-arg/tello_ws/tree/main) as a plugin.
 ## 🧾 License <a id="license"></a>
 
 
