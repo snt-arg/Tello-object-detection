@@ -1,14 +1,6 @@
 # 👩‍💻📸 Object detection and Person tracking with Tello drone
 
-For my Bachelor Semester Project 2, I chose to focus on object detection, by leveraging YOLOv8, 
-a popular framework for object detection, object classification, and more, developed by [Ultralytics](https://github.com/ultralytics).
-
-GitHub repository for YOLOv8 : (https://github.com/ultralytics/ultralytics)
-
-My Bachelor Semester Project 4 
-
-The project is divided into two parts:
-* Implementation on a robot using [ROS](https://www.ros.org/)
+This repository contains two ROS packages. The first one, [tello](https://github.com/snt-arg/Tello-object-detection/tree/main/ros_workspace/tello), performs object detection using a Tello drone's camera by leveraging YOLOv8, a popular framework for object detection, object classification, and more, developed by [Ultralytics](https://github.com/ultralytics). The second one [person_tracking](https://github.com/snt-arg/Tello-object-detection/tree/main/person_tracking) implements drone person tracking. To run the second package, the [tello ros driver](https://github.com/snt-arg/tello_ros_driver) and [hand gesture detector](https://github.com/snt-arg/hand_gestures_plugin) plugins are required.
 
 ## 🔍 Table Of Contents
 
