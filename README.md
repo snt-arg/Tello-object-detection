@@ -90,10 +90,13 @@ This repository is organized into 4 repertories:
     
 
 ## 👨🏻‍💻📝Implementation <a id="implementation"></a>
-This project uses a publisher/subscriber architecture to detect objects on a drone's camera video.
-The publisher node [camera_publisher.py](https://github.com/snt-arg/Tello-object-detection/blob/main/ros_workspace/tello/tello/camera_publisher.py) is in charge of connecting to the drone (using [DJITelloPy](https://github.com/damiafuentes/DJITelloPy)) and reading video frames from the drone's camera.
-These frames are then published on a topic name *image_raw*.
-The subscriber node [sub1.py](https://github.com/snt-arg/Tello-object-detection/blob/main/ros_workspace/tello/tello/sub1.py) receives frames published on *image_raw*, performs object detection on them, and republishes the new frames (with bounding boxes around objects) on *image_detected*.
+- [tello](https://github.com/snt-arg/Tello-object-detection/tree/main/ros_workspace/tello)
+  This project uses a publisher/subscriber architecture to detect objects on a drone's camera video.
+  The publisher node [camera_publisher.py](https://github.com/snt-arg/Tello-object-detection/blob/main/ros_workspace/tello/tello/camera_publisher.py) is in charge of connecting to the drone (using [DJITelloPy](https://github.com/damiafuentes/DJITelloPy)) and reading video frames from the drone's camera.
+  These frames are then published on a topic name *image_raw*.
+  The subscriber node [sub1.py](https://github.com/snt-arg/Tello-object-detection/blob/main/ros_workspace/tello/tello/sub1.py) receives frames published on *image_raw*, performs object detection on them, and republishes the new frames (with bounding boxes around objects) on *image_detected*.
+
+- [person_tracking](https://github.com/snt-arg/Tello-object-detection/tree/main/person_tracking)
 ## 🧾 License <a id="license"></a>
 
 
