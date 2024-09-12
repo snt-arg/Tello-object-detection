@@ -1,13 +1,13 @@
 # 👩‍💻📸 Object detection and Person tracking with Tello drone
 
-For my Bachelor Semester Project 2, I chose to focus on object detection, by leveraging on YOLOv8, 
-a popular framework for object detection, object classification and more, developed by [Ultralytics](https://github.com/ultralytics).
+For my Bachelor Semester Project 2, I chose to focus on object detection, by leveraging YOLOv8, 
+a popular framework for object detection, object classification, and more, developed by [Ultralytics](https://github.com/ultralytics).
 
 GitHub repository for YOLOv8 : (https://github.com/ultralytics/ultralytics)
 
 My Bachelor Semester Project 4 
 
-The project is divised into two parts:
+The project is divided into two parts:
 * Implementation on a robot using [ROS](https://www.ros.org/)
 
 ## 🔍 Table Of Contents
@@ -61,7 +61,7 @@ This repository is organized in 4 repertories:
   Then in a terminal,
   - Move to the ros_workspace directory after cloning the repository
   - Source your ROS distribution using
-  - Build the tello package
+  - Build the Tello package
   - Make sure you are connected to the drone
   - Open three other terminals and source the ROS distribution and the Tello package in all of them
       * In the first one, run the drone's camera publisher node using
@@ -76,8 +76,8 @@ This repository is organized in 4 repertories:
     
 
 ## 👨🏻‍💻📝Implementation <a id="implementation"></a>
-This project uses a publisher/subscriber architecture to perform object detection on a drone's camera video.
-The publisher node [camera_publisher.py](https://github.com/snt-arg/Tello-object-detection/blob/main/ros_workspace/tello/tello/camera_publisher.py) is in charge of connecting to the drone (using [DJITelloPy](https://github.com/damiafuentes/DJITelloPy)), and reading video frames from the drone's camera.
+This project uses a publisher/subscriber architecture to detect objects on a drone's camera video.
+The publisher node [camera_publisher.py](https://github.com/snt-arg/Tello-object-detection/blob/main/ros_workspace/tello/tello/camera_publisher.py) is in charge of connecting to the drone (using [DJITelloPy](https://github.com/damiafuentes/DJITelloPy)) and reading video frames from the drone's camera.
 These frames are then published on a topic name *image_raw*.
 The subscriber node [sub1.py](https://github.com/snt-arg/Tello-object-detection/blob/main/ros_workspace/tello/tello/sub1.py) receives frames published on *image_raw*, performs object detection on them, and republishes the new frames (with bounding boxes around objects) on *image_detected*.
 ## 🧾 License <a id="license"></a>
