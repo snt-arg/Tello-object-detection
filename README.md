@@ -7,6 +7,7 @@ This repository contains two ROS packages. The first one, [tello](https://github
 - [🛠 Installation](#installation)
 - [🧑‍💻️🏃 Run code](#run)
 - [👨🏻‍💻📝Implementation](#implementation)
+- [📈✨Improvements prospects](#improvements)
 - [🧾 License](#license)
 
 ## 🛠️ Installation <a id="installation"></a>
@@ -64,10 +65,10 @@ To settle the environment to run this project on your side, you must:
       pip install djitellopy
       ```
       Again, it is advised to install all requirements from the requirement file.
-  
 
 ## 🧑‍💻️🏃 Run code
-This repository is organized into 4 repertories:
+This repository is organized into 4 directories:
+
 - *config* where all configuration files are kept.
 - *media* containing some videos on which we ran our object detection module to test its functioning.
 - *ros_workspace* contains a robotic package ([tello](https://github.com/snt-arg/Tello-object-detection/tree/main/ros_workspace/tello)) we implemented to perform object detection with a DJI Tello drone.
@@ -102,7 +103,49 @@ This repository is organized into 4 repertories:
         ```
       * In the third terminal, you can use visualization tools such as [rqt_image_view](https://wiki.ros.org/rqt_image_view) to view the image messages published on each topic (*image_raw* for raw images coming from the drone, and *image_detected* for images on which object detection was performed. )
     
-- *person_tracking* contains the second package [person_tracking](https://github.com/snt-arg/Tello-object-detection/tree/main/person_tracking)
+- *person_tracking* contains the second package [person_tracking](https://github.com/snt-arg/Tello-object-detection/tree/main/person_tracking). This package provides to a Tello drone with the functionality of tracking a person.\
+  To run the package, [YOLOv8](https://github.com/ultralytics/ultralytics), [ROS 2](https://docs.ros.org/en/humble/Installation), the [tello driver](https://github.com/snt-arg/tello_ros_driver) and [hand gesture package](https://github.com/snt-arg/hand_gestures_plugin) must be installed.\
+  - Move to the workspace directory after cloning the repository
+    ```sh
+    cd /path/to/workspace
+    ```
+  - Source your ROS distribution using
+    ```sh
+    source /opt/ros/<ros-distro>/setup.bash
+    ```
+    Replace *\<ros-distro\>* with your ROS distribution name.
+  - Build the packages
+    ```sh
+    colcon build --packages-select tello tello_driver hand_gesture
+    ```
+  - Turn the drone on and check your WIFI connection to make sure that your computer is connected to the drone.
+  - Open five other terminals and still in the workspace repertory, source the ROS distribution and the Tello package in all of them with
+      ```sh
+      source ./install/setup.bash
+      ```
+      Then,
+      * In the first terminal, run the tello driver
+        ```sh
+        ros2 launch tello_driver tello_driver.launch.py
+        ```
+      * In the next three terminals run in each terminal the nodes in the person_tracking package
+        ```sh
+        ros2 run person_tracking all_detected_node --ros-args -p standalone:=true
+        ```
+        ```sh
+        ros2 run person_tracking trigger_node --ros-args -p standalone:=true
+        ```
+        ```sh
+        ros2 run person_tracking tracker_node --ros-args -p standalone:=true
+        ```
+      * In the fourth terminal, run the hand gesture recognizer
+        ```sh
+        ros2 launch hand_gestures hand_gestures_launch.py run_annotator:=true
+        ```
+      * You can also use visualization tools such as [rqt_image_view](https://wiki.ros.org/rqt_image_view) to view the image messages published on each topic (*image_raw* for raw images coming from the drone, and *all_detected* for images on which person detection was performed.)
+    
+
+  
    
 ## 👨🏻‍💻📝Implementation <a id="implementation"></a>
 - [tello](https://github.com/snt-arg/Tello-object-detection/tree/main/ros_workspace/tello)\
@@ -112,6 +155,8 @@ This repository is organized into 4 repertories:
   The subscriber node [sub1.py](https://github.com/snt-arg/Tello-object-detection/blob/main/ros_workspace/tello/tello/sub1.py) receives frames published on *image_raw*, performs object detection on them, and republishes the new frames (with bounding boxes around objects) on *image_detected*.
 
 - [person_tracking](https://github.com/snt-arg/Tello-object-detection/tree/main/person_tracking)\
+
+## 📈✨Improvements prospects <a id="improvements"></a>
 ## 🧾 License <a id="license"></a>
 
 
