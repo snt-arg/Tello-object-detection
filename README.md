@@ -27,21 +27,26 @@ To settle the environment to run this project on your side, you must:
   pip install -r requirements.txt
   ``` 
   Even if you do not want to install the packages by using this file, we still recommend you to have a look on the versions of the packages we used, to avoid incompatibility errors.
+
+- Install ROS 2:\
+  For this project, we used ROS 2 Humble Hawksbill. The platforms supported are Ubuntu 22.04, RHEL-8, Windows 10, and macOS(building from source).
+  To install on Ubuntu 22.04 from binary packages(recommended), follow [this tutorial](https://docs.ros.org/en/humble/Installation/Ubuntu-Install-Debians.html).
+  For the other platforms, more information is found [here](https://docs.ros.org/en/humble/Installation.html).
   
-- Tello driver and hand gesture:\
-  These are two ROS packages mandatory to possess to run [person_tracking](https://github.com/snt-arg/Tello-object-detection/tree/main/person_tracking).
-  You must clone them in the same ROS workspace as [person_tracking](https://github.com/snt-arg/Tello-object-detection/tree/main/person_tracking).
+- Install Tello driver and hand gesture packages:\
+  These are two ROS packages mandatory to possess to run the [person_tracking](https://github.com/snt-arg/Tello-object-detection/tree/main/person_tracking) package.
+  You must clone them in the same ROS workspace as [person_tracking](https://github.com/snt-arg/Tello-object-detection/tree/main/person_tracking).\
+  
   Tello driver:
   ```sh
   git clone https://github.com/snt-arg/tello_ros_driver.git
   ```
-  and
   Hand gesture plugin:
   ```sh
   git clone https://github.com/snt-arg/hand_gestures_plugin.git
   ```
 
-  Core dependencies are:
+  NB:
       * YOLOv8 :\
         YOLOv8 should be installed if you installed all packages in [requirements.txt](https://github.com/snt-arg/Tello-object-detection/blob/main/requirements.txt).\
       If not, you can run
@@ -51,21 +56,14 @@ To settle the environment to run this project on your side, you must:
       However, we recommend that you install all the packages in the requirement file to avoid errors.\
         Please note that to run a code that uses YOLOv8, you should possess a Python version >=3.8, and PyTorch >= 1.8.\
         [For more information on how to install YOLOv8](https://github.com/ultralytics/ultralytics?tab=readme-ov-file#documentation).
-      
-    * ROS 2:\
-      For this project, we used ROS 2 Humble Hawksbill. The platforms supported are Ubuntu 22.04, RHEL-8, Windows 10, and macOS(building from source).
-      To install on Ubuntu 22.04 from binary packages(recommended), follow [this tutorial](https://docs.ros.org/en/humble/Installation/Ubuntu-Install-Debians.html).
-      For the other platforms, more information is found [here](https://docs.ros.org/en/humble/Installation.html).
     
     * DJITelloPy:\
-      The [tello](https://github.com/snt-arg/Tello-object-detection/tree/main/ros_workspace/tello) package requires [DJITelloPy](https://github.com/damiafuentes/DJITelloPy) to establish the connection to the drone.
+       It should be installed if you installed packages in [requirements.txt](https://github.com/snt-arg/Tello-object-detection/blob/main/requirements.txt). The [tello](https://github.com/snt-arg/Tello-object-detection/tree/main/ros_workspace/tello) package requires [DJITelloPy](https://github.com/damiafuentes/DJITelloPy) to establish the connection to the drone.
       It can be installed with
       ```sh
       pip install djitellopy
       ```
       Again, it is advised to install all requirements from the requirement file.
-  
-
   
 
 ## 🧑‍💻️🏃 Run code
