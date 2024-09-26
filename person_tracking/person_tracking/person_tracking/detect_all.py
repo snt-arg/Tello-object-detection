@@ -22,6 +22,9 @@ from tello_control_station.interface import Interface, matching_keys
 #YOLOv8 object detection framework
 from ultralytics import YOLO
 
+#temp
+import cv2
+
 #load the object detection model
 model = YOLO('yolov8n.pt') 
 
@@ -34,7 +37,7 @@ classes_ID = [k for k,v in classes.items() if v in classes_needed]
 
 
 class DetectAll(PluginBase):
-
+    
     #Minimum confidence probability for a detection to be accepted
     minimum_prob = 0.4  
 
@@ -44,18 +47,27 @@ class DetectAll(PluginBase):
     bounding_boxes_topic = "/all_bounding_boxes"
     key_pressed_topic = "/key_pressed"
     
+    #ROS Subscriptions
+    sub_raw = None
+    
+    #ROS Publishers
+    publisher_all_detected = None
+    publisher_bounding_boxes = None
+    publisher_key_pressed = None
+
     def __init__(self,name):
 
         #Creating the Node
         super().__init__(name)
+
+        #init topic names
+        self._init_parameters()
+
+        #init subscribers
+        self._init_subscriptions()
         
-        #subscribers
-        self.sub_raw = self.create_subscription(Image,self.image_raw_topic, self.listener_callback,5)
-        
-        #publishers
-        self.publisher_all_detected = self.create_publisher(Image,self.all_detected_topic,5)
-        self.publisher_bounding_boxes = self.create_publisher(AllBoundingBoxes,self.bounding_boxes_topic,5)
-        self.publisher_key_pressed = self.create_publisher(String,self.key_pressed_topic,5)
+        #init publishers
+        self._init_publishers()
 
         #to convert cv2 images to Ros Image messages and vice versa
         self.cv_bridge = CvBridge()
@@ -77,12 +89,54 @@ class DetectAll(PluginBase):
 
         #Variable to perform object detection on only some frames
         self.process = 0
+        
+################################ Init functions ##################################################################################
+    def _init_parameters(self)->None:
+        """Method to initialize parameters such as ROS topics' names"""
+        minimum_prob = 0.4  
 
+        #Topic names
+        self.declare_parameter("image_raw_topic",self.image_raw_topic) 
+        self.declare_parameter("all_detected_topic",self.all_detected_topic) 
+        self.declare_parameter("bounding_boxes_topic", self.bounding_boxes_topic )
+        self.declare_parameter("key_pressed_topic", self.key_pressed_topic)
+        self.declare_parameter("minimum_prob",self.minimum_prob)
+
+        self.image_raw_topic= (
+            self.get_parameter("image_raw_topic").get_parameter_value().string_value
+        )
+        self.all_detected_topic= (
+            self.get_parameter("all_detected_topic").get_parameter_value().string_value
+        )
+        self.bounding_boxes_topic = (
+            self.get_parameter("bounding_boxes_topic").get_parameter_value().string_value
+        )
+
+        self.key_pressed_topic = (
+            self.get_parameter("key_pressed_topic").get_parameter_value().string_value
+        )
+
+        self.minimum_prob = (
+            self.get_parameter("minimum_prob").get_parameter_value().double_value
+        )
+
+           
+    def _init_publishers(self)->None:
+        """Method to initialize publishers"""
+        self.publisher_all_detected = self.create_publisher(Image,self.all_detected_topic,5)
+        self.publisher_bounding_boxes = self.create_publisher(AllBoundingBoxes,self.bounding_boxes_topic,5)
+        self.publisher_key_pressed = self.create_publisher(String,self.key_pressed_topic,5)
+        
+
+    def _init_subscriptions(self)->None:
+        """Method to initialize subscriptions"""
+        self.sub_raw = self.create_subscription(Image,self.image_raw_topic, self.listener_callback,5)
 
 
 
 ########################### Subscriber ###########################################################################################   
-    def listener_callback(self, img):
+
+    def listener_callback(self, img)->None:
         """Callback function for the subscriber node (to topic /camera/image_raw).
         For each image received, it saves in the log that an image has been received.
         Then converts that image into cv2 format before performing object detection on that image and saving 
@@ -95,7 +149,7 @@ class DetectAll(PluginBase):
             self.pg_interface.update_bg_image(img)
         self.process += 1
         
-    def detection(self,frame):
+    def detection(self,frame)->None
         """Function to perform person object detection on a single frame.
         It saves the coordinates of all bounding boxes of persons detected on the frame in a variable named self.boxes"""
 
@@ -120,7 +174,7 @@ class DetectAll(PluginBase):
 
 
 ######################## Publisher #####################################################################################  
-    def all_detected_callback(self):
+    def all_detected_callback(self)->None:
         """
         callback funtion for the publisher node (to topic /camera/image_detected).
         The image on which object detection has been performed (self.image_all_detected) is published on the topic '/all_detected'
@@ -132,7 +186,7 @@ class DetectAll(PluginBase):
             self.get_logger().info("Publishing a frame on all detected topic")
             
     
-    def bounding_boxes_callback(self):
+    def bounding_boxes_callback(self)->None:
         """
         callback funtion for the publisher node (to topic /all_bounding_boxes).
         A list of the coordinates of bounding boxes detected on the frame is published.
@@ -143,7 +197,7 @@ class DetectAll(PluginBase):
             self.publisher_bounding_boxes.publish(self.boxes)
             self.get_logger().info("Publishing a bounding boxes")
 
-    def key_pressed_callback(self):
+    def key_pressed_callback(self)->None:
         keys = self.pg_interface.get_key_pressed()
         msg = String()
         # START/STOP
