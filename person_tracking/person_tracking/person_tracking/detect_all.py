@@ -61,7 +61,7 @@ class DetectAll(PluginBase):
         super().__init__(name)
 
         #init topic names
-        self._init_parameters()
+        #self._init_parameters()
 
         #init subscribers
         self._init_subscriptions()
@@ -91,9 +91,8 @@ class DetectAll(PluginBase):
         self.process = 0
         
 ################################ Init functions ##################################################################################
-    def _init_parameters(self)->None:
-        """Method to initialize parameters such as ROS topics' names"""
-        minimum_prob = 0.4  
+    """ def _init_parameters(self)->None:
+    #Method to initialize parameters such as ROS topics' names 
 
         #Topic names
         self.declare_parameter("image_raw_topic",self.image_raw_topic) 
@@ -103,22 +102,22 @@ class DetectAll(PluginBase):
         self.declare_parameter("minimum_prob",self.minimum_prob)
 
         self.image_raw_topic= (
-            self.get_parameter("image_raw_topic").get_parameter_value().string_value
+        self.get_parameter("image_raw_topic").get_parameter_value().string_value
         )
         self.all_detected_topic= (
-            self.get_parameter("all_detected_topic").get_parameter_value().string_value
+        self.get_parameter("all_detected_topic").get_parameter_value().string_value
         )
         self.bounding_boxes_topic = (
-            self.get_parameter("bounding_boxes_topic").get_parameter_value().string_value
+        self.get_parameter("bounding_boxes_topic").get_parameter_value().string_value
         )
 
         self.key_pressed_topic = (
-            self.get_parameter("key_pressed_topic").get_parameter_value().string_value
+        self.get_parameter("key_pressed_topic").get_parameter_value().string_value
         )
 
         self.minimum_prob = (
-            self.get_parameter("minimum_prob").get_parameter_value().double_value
-        )
+        self.get_parameter("minimum_prob").get_parameter_value().double_value
+    ) """
 
            
     def _init_publishers(self)->None:
@@ -149,7 +148,7 @@ class DetectAll(PluginBase):
             self.pg_interface.update_bg_image(img)
         self.process += 1
         
-    def detection(self,frame)->None
+    def detection(self,frame)->None:
         """Function to perform person object detection on a single frame.
         It saves the coordinates of all bounding boxes of persons detected on the frame in a variable named self.boxes"""
 
