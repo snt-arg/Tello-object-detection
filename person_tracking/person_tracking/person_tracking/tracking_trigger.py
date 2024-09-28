@@ -14,8 +14,8 @@ from person_tracked.msg import PersonTracked, PointMsg
 #bounding boxes messages
 from all_bounding_boxes_msg.msg import AllBoundingBoxes
 
-#To handle images
-#import cv2
+#To handle math formula
+import math
 
 #To convert cv2 images to ROS Image messages
 from cv_bridge import CvBridge
@@ -236,7 +236,7 @@ class TriggerTracking(Node):
 
                             self.get_logger().info(f"top_left: {top_left_x}, {top_left_y}")
                             self.get_logger().info(f"bottom_right: {bottom_right_x}, {bottom_right_y}")
-                            self.get_logger().info(f'First time midpoint updated to {self.person_tracked_msg.middle_point} \n')#{self.person_tracked_midpoint}')
+                            self.get_logger().info(f'First time midpoint updated to {self.person_tracked_msg.middle_point} \n') #{self.person_tracked_midpoint}')
                             self.get_logger().info(f"Size of the bounding box : {self.person_tracked_msg.bounding_box_size}.\nThis is the length of the diagonal of the bounding box\n")
                             return  
                             
@@ -282,7 +282,7 @@ class TriggerTracking(Node):
                     self.person_tracked_midpoint.x = new_midpoint_x
                     self.person_tracked_midpoint.y = new_midpoint_y
                     smallest_error_margin = error_margin
-                    bounding_box_size = math.sqrt(euclidean_distance_squared(top_left_x,top_left_y,bottom_right_x,bottom_right_y))
+                    bounding_box_size = math.sqrt(self.euclidean_distance_squared(top_left_x,top_left_y,bottom_right_x,bottom_right_y))
                     self.get_logger().info(f"top_left: {top_left_x}, {top_left_y}")
                     self.get_logger().info(f"bottom_right: {bottom_right_x}, {bottom_right_y}")
 
