@@ -16,7 +16,7 @@ import cv2
 #import numpy as np
 
 #To convert cv2 images to ROS Image messages
-from cv_bridge import CvBridge
+#from cv_bridge import CvBridge
 
 from person_tracking.pid import PIDPoint
 
@@ -70,6 +70,8 @@ class TrackPerson(Node):
        
         self.person_tracked_midpoint = None
 
+        self.bounding_box_size = None
+
         self.prev_midpoint = None 
 
         self.commands_msg = None
@@ -81,7 +83,7 @@ class TrackPerson(Node):
         
         self.empty_midpoint_count = 0 #variable to count the amount of empty messages received. If this number is higher than a certain number, the person is considered lost.
         
-        #Counter for self.persont_tracked_midpoint in the update message function.
+        #Counter for self.person_tracked_midpoint in the update message function.
         #If the midpoint is the same after a certain number of calls to the function, the connection might be broken. so we send empty command messages
         self.connection_lost_midpoint_unchanged_counter = 0  
         
@@ -89,7 +91,7 @@ class TrackPerson(Node):
 
         self.key_pressed = None #variable to contain key pressed on the Pygame GUI, either to land or takeoff
 
-        self.flying = True#variable is True when the dron is flying and False if it landed
+        self.flying = True#variable is True when the drone is flying and False if it landed
 
         self.rotating = False #variable to check if the drone is rotating
 
@@ -111,6 +113,7 @@ class TrackPerson(Node):
         else:
             self.update_midpoint = True
             self.person_tracked_midpoint = tmp
+            self.bounding_box_size = msg.bounding_box_size
             self.midpoint_queue.append(self.person_tracked_midpoint)
             self.empty_midpoint_count = 0
             self.get_logger().info(f'midpoint {self.person_tracked_midpoint}')
@@ -172,7 +175,8 @@ class TrackPerson(Node):
 ######################### Publisher #####################################################################################################
     def commands_callback(self):
         self.land_takeoff()
-        if self.flying and not self.rotating:
+        #if self.flying and not self.rotating:
+        if not self.rotating:
             #command_thread = Thread(target=self.update_commands).start()
             self.update_commands()
             
@@ -220,7 +224,7 @@ class TrackPerson(Node):
                 return None
 
             
-            if self.person_tracked_midpoint is not None and self.correction is not None :
+            if self.person_tracked_midpoint is not None and self.correction is not None:
                 correction_x, correction_y = self.correction
                 self.get_logger().info(f'Correction x:{correction_x}, y:{correction_y}')
                 #self.get_logger().info(f'midpoint {self.person_tracked_midpoint}')
@@ -232,6 +236,16 @@ class TrackPerson(Node):
                 elif self.person_tracked_midpoint.x > 0.7:#correction_x > 0.6 :
                     self.get_logger().info("move right") #(d in keyboard mode control station )             
                     self.commands_msg.linear.y = -0.22
+            
+            if self.bounding_box_size is not None:
+
+                if self.bounding_box_size < 0.3:
+                    self.get_logger().info("approach") 
+                    self.commands_msg.linear.x = 0.22
+
+                elif self.bounding_box_size > 0.7:
+                    self.get_logger().info("move back")
+                    self.commands_msg.linear.x = 0.22
 
             self.publisher_commands.publish(self.commands_msg) 
         
@@ -269,8 +283,7 @@ class TrackPerson(Node):
         if self.commands_msg is not None:
             self.rotating = True
             current_angle = 0
-            #target_angle = 2*pi
-            self.commands_msg.angular.z = angular_speed#pi
+            self.commands_msg.angular.z = angular_speed
 
 
             self.get_logger().info(f"Before rotating,  angular.z is {self.commands_msg.angular.z} and current_angle is {current_angle}")
@@ -293,7 +306,30 @@ class TrackPerson(Node):
             self.rotating = False
             self.publisher_land.publish(Empty()) #land if we found no one after a complete rotation
             self.flying = False
-            
+    
+    """
+    def move_y(self,speed, target_distance)->None:
+        #Function to move the drone left or right with a PID
+        if self.commands_msg is not None:
+            self.rotating = True
+            current_distance = 0
+            self.commands_msg.linear.y = angular_speed#pi
+
+            t0 = self.get_clock().now()
+
+            while abs(current_distance) < abs(target_distance):
+
+                self.publisher_commands.publish(self.commands_msg) 
+
+                t1 = self.get_clock().now()
+
+                current_distance = self.commands_msg.linear.y * ((t1-t0).to_msg().sec)
+
+            self.get_logger().info(f"After rotating ,angular.z is {self.commands_msg.angular.z} and current_angle is {current_angle}")
+            self.rotating = False
+            self.publisher_land.publish(Empty()) #land if we found no one after a complete rotation
+            self.flying = False
+    """
 
     def empty_midpoint(self, midpoint):
         """Function to test if the current midpoint is empty (x==0 and y==0). 
@@ -310,11 +346,13 @@ class TrackPerson(Node):
             if self.key_pressed == "t":
                 self.publisher_takeoff.publish(Empty())
                 self.flying = True
-                return None
-            if self.key_pressed == "l":
+                
+            elif self.key_pressed == "l":
                 self.publisher_land.publish(Empty())
                 self.flying = False
-                return None
+
+            self.key_pressed = '' #To avoid taking off after the drone lands when it lost the person.
+            return None
 
     def equal_point_msg(self, p1, p2)->bool:
         """function to compare to point messages (PointMsg).
@@ -368,74 +406,4 @@ def main(args=None):
     
     rclpy.shutdown()      
 
-"""####################TEST#######################
-        #if (self.test % 10) == 0:
-        #self.commands_msg.angular.z = 0.5
-        #while self.commands_msg.angular.z != 0 :
-        current_angle = 0
-        target_angle = 2*pi
-
-        self.commands_msg.angular.z = pi
-        self.commands_msg.linear.x = 0.0
-        self.commands_msg.linear.y = 0.0
-        self.commands_msg.linear.z = 0.0
-        self.commands_msg.angular.y = 0.0
-        self.commands_msg.angular.x = 0.0
-
-        t0 = self.get_clock().now()
-
-        while current_angle < target_angle: 
-            self.publisher_commands.publish(self.commands_msg) 
-            t1 = self.get_clock().now()
-
-            current_angle = self.commands_msg.angular.z * ((t1-t0).to_msg().sec)
-
-            self.get_logger().info(f"rotation {self.test}. angular.z is {self.commands_msg.angular.z} and current_angle is {current_angle}")
-            self.test += 1
-        
-        #############END TEST#########################
-
-        ###########test##################################
-        
-        if self.test % 2 == 0:
-            #print("move left")
-            self.move("left")
-            self.test += 1
-        else:
-            self.move("right")
-            self.test += 1
-                
-        
-        #########################end test################
-
-        def move(self,direction):
-        #function to move the drone left or right
-        #direction can only be 'left' or 'right' 
-            msg = Twist()
-
-            if direction == "left":
-                msg.linear.y = 0.5
-            else:
-                msg.linear.y = -0.5
-
-            t0 = self.get_clock().now()
-            t1 = self.get_clock().now()
-
-            time = 2 if direction == "left" else 1
-            while (t1-t0).to_msg().sec < 2: 
-                self.publisher_commands.publish(msg) 
-                t1 = self.get_clock().now()
-            self.get_logger().info(f"movement  {direction}!!")
-
-
-                
-
-           # elif direction == "up":
-                #self.commands_msg.linear.y += 0.5
-            #    print("go up")
-
-            #elif direction == "down":
-                #self.commands_msg.linear.y -= 0.5
-            #    print("go down") 
-"""  
 
