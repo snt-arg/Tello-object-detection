@@ -15,8 +15,6 @@ from person_tracked.msg import PersonTracked, PointMsg
 import cv2
 #import numpy as np
 
-#To convert cv2 images to ROS Image messages
-#from cv_bridge import CvBridge
 
 from person_tracking.pid import PIDPoint
 
@@ -46,25 +44,35 @@ class TrackPerson(Node):
 
     max_empty_midpoint_before_lost = 10
 
+    #subscribers
+    sub_person_tracked = None
+
+    sub_key_pressed = None
+
+    #publishers
+    publisher_commands = None
+
+    timer = None
+
+    publisher_takeoff = None
+       
+    publisher_land = None
+        
+    
+
     
     def __init__(self,name):
         #Creating the Node
         super().__init__(name)
         
-        #subscribers
-        self.sub_person_tracked = self.create_subscription(PersonTracked,self.person_tracked_topic, self.listener_callback,5)
+        #init topic names
+        self._init_parameters()
 
-        self.sub_key_pressed = self.create_subscription(String,self.key_pressed_topic, self.key_pressed_subscriber_callback,5)
-
-        #publishers
-        self.publisher_commands = self.create_publisher(Twist,self.commands_topic,10)
-        self.timer = self.create_timer(0.09, self.commands_callback)
-        #self.timer_1 = self.create_timer(10, self.commands_callback)
-
-        self.publisher_takeoff = self.create_publisher(Empty,self.takeoff_topic,1)
-       
-        self.publisher_land = self.create_publisher(Empty,self.land_topic,1)
+        #init subscribers
+        self._init_subscriptions()
         
+        #init publishers
+        self._init_publishers()
 
         self.pid = PIDPoint((0.5, 0.5)) #middle of the screen for normalized midpoint coordinates
        
@@ -97,6 +105,64 @@ class TrackPerson(Node):
 
         
 
+
+    def _init_parameters(self)->None:
+        """Method to initialize parameters such as ROS topics' names """
+
+        #Topic names
+        self.declare_parameter("key_pressed_topic",self.key_pressed_topic) 
+        self.declare_parameter("person_tracked_topic",self.person_tracked_topic) 
+        self.declare_parameter("commands_topic", self.commands_topic)
+        self.declare_parameter("land_topic",self.land_topic)
+        self.declare_parameter("takeoff_topic",self.takeoff_topic)
+        self.declare_parameter("max_length_midpoint_queue",self.max_length_midpoint_queue)
+        self.declare_parameter("max_empty_midpoint_before_lost",self.max_empty_midpoint_before_lost)
+
+        self.key_pressed_topic= (
+        self.get_parameter("key_pressed_topic").get_parameter_value().string_value
+        )
+        self.person_tracked_topic= (
+        self.get_parameter("person_tracked_topic").get_parameter_value().string_value
+        )
+        self.commands_topic = (
+        self.get_parameter("commands_topic").get_parameter_value().string_value
+        )
+
+        self.land_topic = (
+        self.get_parameter("land_topic").get_parameter_value().string_value
+        )
+
+        self.takeoff_topic = (
+        self.get_parameter("takeoff_topic").get_parameter_value().string_value
+        ) 
+        self.max_length_midpoint_queue = (
+        self.get_parameter("max_length_midpoint_queue").get_parameter_value().integer_value
+        )
+
+        self.max_empty_midpoint_before_lost = (
+        self.get_parameter("max_empty_midpoint_before_lost").get_parameter_value().integer_value
+        ) 
+
+
+           
+    def _init_publishers(self)->None:
+        """Method to initialize publishers"""
+        
+        #publishers
+        self.publisher_commands = self.create_publisher(Twist,self.commands_topic,10)
+        self.timer = self.create_timer(0.09, self.commands_callback)
+        #self.timer_1 = self.create_timer(10, self.commands_callback)
+
+        self.publisher_takeoff = self.create_publisher(Empty,self.takeoff_topic,1)
+       
+        self.publisher_land = self.create_publisher(Empty,self.land_topic,1)
+        
+
+    def _init_subscriptions(self)->None:
+        """Method to initialize subscriptions"""
+        self.sub_person_tracked = self.create_subscription(PersonTracked,self.person_tracked_topic, self.listener_callback,5)
+
+        self.sub_key_pressed = self.create_subscription(String,self.key_pressed_topic, self.key_pressed_subscriber_callback,5)
         
         
 ###########################first subscriber###########################################################################################   
@@ -239,13 +305,13 @@ class TrackPerson(Node):
             
             if self.bounding_box_size is not None:
 
-                if self.bounding_box_size < 0.3:
+                if self.bounding_box_size < 0.5 and self.bounding_box_size > 0:
                     self.get_logger().info("approach") 
                     self.commands_msg.linear.x = 0.22
 
-                elif self.bounding_box_size > 0.7:
+                elif self.bounding_box_size > 1.:
                     self.get_logger().info("move back")
-                    self.commands_msg.linear.x = 0.22
+                    self.commands_msg.linear.x = -0.22
 
             self.publisher_commands.publish(self.commands_msg) 
         
