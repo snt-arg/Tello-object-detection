@@ -39,21 +39,28 @@ class TriggerTracking(Node):
 
     #amount of midpoints to receive before concluding that the person is lost. 
     max_empty_midpoint_before_lost = 10
+
+    #subscribers
+    sub_bounding_boxes = None
+    sub_landmark = None
+
+    #publishers
+    publisher_to_track = None
+    timer_1 = None
     
     def __init__(self,name):
 
         #Creating the Node
         super().__init__(name)
-        
-        #subscribers
-        self.sub_bounding_boxes = self.create_subscription(AllBoundingBoxes,self.bounding_boxes_topic, self.bounding_boxes_listener_callback,5)
-        self.sub_landmark = self.create_subscription(Landmarks,self.hand_landmarks_topic, self.landmarks_listener_callback,5)
-        
-        """self.test_sub = self.create_subscription(Image,"/all_detected",self.test_listener,10)"""
 
-        #publishers
-        self.publisher_to_track= self.create_publisher(PersonTracked,self.person_tracked_topic,10)
-        self.timer_1 = self.create_timer(0.09, self.person_tracked_callback)
+        #init topic names
+        self._init_parameters()
+
+        #init subscribers
+        self._init_subscriptions()
+        
+        #init publishers
+        self._init_publishers()
         
         #Used to convert cv2 frames into ROS Image messages and vice versa
         self.cv_bridge = CvBridge()
@@ -85,20 +92,60 @@ class TriggerTracking(Node):
         self.empty_midpoint_count = 0 #variable to count the amount of empty messages received. If this number is higher than a certain number, the person is considered lost.
         
          
-        """self.image_height = None
+        
+    def _init_parameters(self)->None:
+        """Method to initialize parameters such as ROS topics' names """
 
-        self.image_width = None
+        #Topic names
+        self.declare_parameter("hand_landmarks_topic",self.hand_landmarks_topic) 
+        self.declare_parameter("person_tracked_topic",self.person_tracked_topic) 
+        self.declare_parameter("bounding_boxes_topic", self.bounding_boxes_topic)
+        self.declare_parameter("right_hand_gesture_trigger",self.right_hand_gesture_trigger)
+        self.declare_parameter("left_hand_gesture_trigger",self.left_hand_gesture_trigger)
+        self.declare_parameter("right_hand_gesture_stop",self.right_hand_gesture_stop)
+        self.declare_parameter("left_hand_gesture_stop",self.left_hand_gesture_stop)
+        self.declare_parameter("max_empty_midpoint_before_lost",self.max_empty_midpoint_before_lost)
 
-        self.fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        self.video = cv2.VideoWriter('/media/maeri/UBUNTUUU/output1118.mp4',self.fourcc,20.0,(640,480))"""
+        self.hand_landmarks_topic= (
+        self.get_parameter("hand_landmarks_topic").get_parameter_value().string_value
+        )
+        self.person_tracked_topic= (
+        self.get_parameter("person_tracked_topic").get_parameter_value().string_value
+        )
+        self.bounding_boxes_topic = (
+        self.get_parameter("bounding_boxes_topic").get_parameter_value().string_value
+        )
 
-################################ test subscriber #####################################################################################
-    """def test_listener(self,frame_msg):
-        #To delete , just a test listener callback to verify the midpoint is really the midpoint
-        frame = self.cv_bridge.imgmsg_to_cv2(frame_msg,'bgr8')
-        self.image_height, self.image_width, _ = frame.shape
-        if self.person_tracked_midpoint is not None:
-            self.video.write(cv2.circle(frame,(int(self.person_tracked_msg.middle_point.x),int(self.person_tracked_msg.middle_point.y)),10,(255,0,0),-1))"""
+        self.right_hand_gesture_trigger = (
+        self.get_parameter("right_hand_gesture_trigger").get_parameter_value().string_value
+        )
+
+        self.left_hand_gesture_trigger = (
+        self.get_parameter("left_hand_gesture_trigger").get_parameter_value().string_value
+        ) 
+        self.right_hand_gesture_stop = (
+        self.get_parameter("right_hand_gesture_stop").get_parameter_value().string_value
+        )
+
+        self.left_hand_gesture_stop = (
+        self.get_parameter("left_hand_gesture_stop").get_parameter_value().string_value
+        ) 
+        self.max_empty_midpoint_before_lost = (
+        self.get_parameter("max_empty_midpoint_before_lost").get_parameter_value().integer_value
+        )
+
+
+           
+    def _init_publishers(self)->None:
+        """Method to initialize publishers"""
+        self.publisher_to_track = self.create_publisher(PersonTracked,self.person_tracked_topic,10)
+        self.timer_1 = self.create_timer(0.09, self.person_tracked_callback)
+        
+
+    def _init_subscriptions(self)->None:
+        """Method to initialize subscriptions"""
+        self.sub_bounding_boxes = self.create_subscription(AllBoundingBoxes,self.bounding_boxes_topic, self.bounding_boxes_listener_callback,5)
+        self.sub_landmark = self.create_subscription(Landmarks,self.hand_landmarks_topic, self.landmarks_listener_callback,5)
 
 ########################### First Subscriber ###########################################################################################   
     def bounding_boxes_listener_callback(self, boxes_msg):
