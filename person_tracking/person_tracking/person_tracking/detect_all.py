@@ -22,11 +22,15 @@ from tello_control_station.interface import Interface, matching_keys
 #YOLOv8 object detection framework
 from ultralytics import YOLO
 
-#temp
-import cv2
+#for gpu 
+import torch
 
 #load the object detection model
 model = YOLO('yolov8n.pt') 
+
+#use gpu if available, and if not, cpu
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model.to(device)
 
 #Defining claases of interest
 classes_needed = ["person"]  
@@ -61,7 +65,7 @@ class DetectAll(PluginBase):
         super().__init__(name)
 
         #init topic names
-        #self._init_parameters()
+        self._init_parameters()
 
         #init subscribers
         self._init_subscriptions()
@@ -91,8 +95,8 @@ class DetectAll(PluginBase):
         self.process = 0
         
 ################################ Init functions ##################################################################################
-    """ def _init_parameters(self)->None:
-    #Method to initialize parameters such as ROS topics' names 
+    def _init_parameters(self)->None:
+        """Method to initialize parameters such as ROS topics' names """
 
         #Topic names
         self.declare_parameter("image_raw_topic",self.image_raw_topic) 
@@ -117,7 +121,7 @@ class DetectAll(PluginBase):
 
         self.minimum_prob = (
         self.get_parameter("minimum_prob").get_parameter_value().double_value
-    ) """
+        ) 
 
            
     def _init_publishers(self)->None:
