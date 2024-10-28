@@ -15,6 +15,8 @@ from person_tracking_msgs.msg import PersonTracked, PointMsg, AllBoundingBoxes, 
 #To handle math formula
 import math
 
+from copy import copy
+
 #To convert cv2 images to ROS Image messages
 from cv_bridge import CvBridge
 
@@ -138,7 +140,7 @@ class TriggerTracking(Node):
     def _init_publishers(self)->None:
         """Method to initialize publishers"""
         self.publisher_to_track = self.create_publisher(PersonTracked,self.person_tracked_topic,10)
-        self.timer_1 = self.create_timer(0.09, self.person_tracked_callback)
+        self.timer_1 = self.create_timer(0.05, self.person_tracked_callback)
         
 
     def _init_subscriptions(self)->None:
@@ -208,7 +210,7 @@ class TriggerTracking(Node):
                         self.update_middlepoint()
                         self.publisher_to_track.publish(self.person_tracked_msg) 
                         self.get_logger().info(f"\nNow we know the person to track. midpoint is {self.person_tracked_msg.middle_point} \n")
-                        self.get_logger().info(f"{self.landmarks.right_hand.gesture} {self.landmarks.left_hand.gesture}")
+                        #self.get_logger().info(f"{self.landmarks.right_hand.gesture} {self.landmarks.left_hand.gesture}")
                 
                 else: #if the tracked person is lost, we start tracking the person detected by our YOLO model with the highest confidence score (the person from the first bounding box)
                     if self.boxes.bounding_boxes:#empty lists in Python can be evaluated as a boolean False. Hence this test is to make sure that boxes are received
@@ -217,11 +219,11 @@ class TriggerTracking(Node):
                         self.person_tracked_midpoint.x = (highest_conf_box.top_left.x / 2) + (highest_conf_box.bottom_right.x / 2) 
                         self.person_tracked_midpoint.y = (highest_conf_box.top_left.y / 2) + (highest_conf_box.bottom_right.y / 2)
                         self.empty_midpoint_count = 0
-                        self.get_logger().info(f"\n#######################################\nStarted tracking a new person!\n#############################################\n")
+                        self.get_logger().info(f"\n\n#######################################\n\n#######################################\nStarted tracking a new person!\n#############################################\n")
                         self.get_logger().info(f'So the midpoint of that person is {self.person_tracked_midpoint}') 
                         #self.person_tracked_msg = PersonTracked()
-                        self.person_tracked_msg.middle_point = self.person_tracked_midpoint
-                        self.person_tracked_msg.bounding_box = highest_conf_box 
+                        self.person_tracked_msg.middle_point = copy(self.person_tracked_midpoint)
+                        self.person_tracked_msg.bounding_box = copy(highest_conf_box) 
                         self.publisher_to_track.publish(self.person_tracked_msg)    
  
 
@@ -251,7 +253,9 @@ class TriggerTracking(Node):
         Precondition: self.boxes is not None"""
         
         #Loop to go through all the bounding boxes to find the box in which are contained both the left hand and right hand wrist center point
+        self.get_logger().info(f"Start seeking the person\nThese are boxes {self.boxes.bounding_boxes}")
         for box in self.boxes.bounding_boxes:
+            
 
             #Extracting the normalized coordinates of the top left and bottom right corner of each box. 
             top_left_x = box.top_left.x
@@ -265,22 +269,24 @@ class TriggerTracking(Node):
             right_hand_x = self.person_tracked_right_hand_point.x
             right_hand_y = self.person_tracked_right_hand_point.y
 
+            # Midpoint between the left and the right hand points
+            midpoint_hand_x = (left_hand_x + right_hand_x)/ 2
+            midpoint_hand_y = (left_hand_y + right_hand_y)/ 2  
+            self.get_logger().info(f"Seeking the person {box}, midpoint hand : {midpoint_hand_x},{midpoint_hand_y}\n")
+
             #If both wrist' center points are in the bounding box, we update the midpoint 
-            if top_left_x <= left_hand_x and top_left_x <= right_hand_x:
-                if bottom_right_x >= left_hand_x and bottom_right_x >= right_hand_x:
-                    if top_left_y <= left_hand_y and top_left_y <= right_hand_y:
-                        if bottom_right_y >= left_hand_y and bottom_right_y >= right_hand_y:
+            if top_left_x <= midpoint_hand_x and bottom_right_x >= midpoint_hand_x:
+                if top_left_y <= midpoint_hand_y and bottom_right_y >= midpoint_hand_y:
+                    self.person_tracked_midpoint.x = top_left_x/ 2 + bottom_right_x/2 
+                    self.person_tracked_midpoint.y = top_left_y/2 + bottom_right_y/2
+                    
+                    self.person_tracked_msg.middle_point = copy(self.person_tracked_midpoint) #self.denormalize()
+                    self.person_tracked_msg.bounding_box = copy(box)
 
-                            self.person_tracked_midpoint.x = top_left_x/ 2 + bottom_right_x/2 
-                            self.person_tracked_midpoint.y = top_left_y/2 + bottom_right_y/2
-                            
-                            self.person_tracked_msg.middle_point = self.person_tracked_midpoint #self.denormalize()
-                            self.person_tracked_msg.bounding_box = box
-
-                            self.get_logger().info(f"top_left: {top_left_x}, {top_left_y}")
-                            self.get_logger().info(f"bottom_right: {bottom_right_x}, {bottom_right_y}")
-                            self.get_logger().info(f'First time midpoint updated to {self.person_tracked_msg.middle_point} \n') #{self.person_tracked_midpoint}')
-                            return  
+                    self.get_logger().info(f"top_left: {top_left_x}, {top_left_y}")
+                    self.get_logger().info(f"bottom_right: {bottom_right_x}, {bottom_right_y}")
+                    self.get_logger().info(f'First time midpoint updated to {self.person_tracked_msg.middle_point} \n') #{self.person_tracked_midpoint}')
+                    return  
                             
         if self.person_tracked_midpoint.x == 0 and self.person_tracked_midpoint.y == 0:
             self.get_logger().info(f"\nCannot find the person who did the gesture")
@@ -299,6 +305,7 @@ class TriggerTracking(Node):
         prev_midpoint_x = self.person_tracked_midpoint.x
         prev_midpoint_y = self.person_tracked_midpoint.y
         bounding_box = Box()
+        self.get_logger().info(f"\nUpdate middlepoint boxeS {self.boxes.bounding_boxes}\n\n")
 
         #Loop to go through all the bounding boxes to find the bounding box whose midpoint is the closest to the midpoint of person tracked in the previous frame.
         #The midpoint found will be the new midpoint of the person to track
@@ -309,26 +316,29 @@ class TriggerTracking(Node):
             bottom_right_x = box.bottom_right.x
             bottom_right_y = box.bottom_right.y
 
-            #Extracting the previous midpoint's coordinates
-            midpoint_x = self.person_tracked_midpoint.x
-            midpoint_y = self.person_tracked_midpoint.y
+            
 
+            self.get_logger().info(f"Searching the person from last midpoint {box}\n")
+            
             #if the previous midpoint is contained within the box, we calculate the distance between both points
             #if that distance is the shortest encountered yet, we update the midpoint
-            if top_left_x <= midpoint_x and top_left_y <= midpoint_y and bottom_right_x >= midpoint_x and bottom_right_y >= midpoint_y:
-                new_midpoint_x = top_left_x/ 2 + bottom_right_x/2
-                new_midpoint_y = top_left_y/2 + bottom_right_y/2
-                error_margin = self.euclidean_distance_squared(midpoint_x,midpoint_y,new_midpoint_x,new_midpoint_y) #distance between midpoints
+            if top_left_x <= prev_midpoint_x and top_left_y <= prev_midpoint_y:
+                if bottom_right_x >= prev_midpoint_x and bottom_right_y >= prev_midpoint_y:
+                    
+                    new_midpoint_x = top_left_x/ 2 + bottom_right_x/2
+                    new_midpoint_y = top_left_y/2 + bottom_right_y/2
+                    error_margin = self.euclidean_distance_squared(prev_midpoint_x,prev_midpoint_y,new_midpoint_x,new_midpoint_y) #distance between midpoints
                 
-                #updating the midpoint
-                if (smallest_error_margin == -1) or (error_margin < smallest_error_margin):
-                    self.person_tracked_midpoint.x = new_midpoint_x
-                    self.person_tracked_midpoint.y = new_midpoint_y
-                    smallest_error_margin = error_margin
-                    bounding_box = box
+            #updating the midpoint
+            
+                    if (smallest_error_margin == -1) or (error_margin < smallest_error_margin):
+                        self.person_tracked_midpoint.x = new_midpoint_x
+                        self.person_tracked_midpoint.y = new_midpoint_y
+                        smallest_error_margin = error_margin
+                        bounding_box = copy(box)
 
-                    self.get_logger().info(f"top_left: {top_left_x}, {top_left_y}")
-                    self.get_logger().info(f"bottom_right: {bottom_right_x}, {bottom_right_y}")
+                        self.get_logger().info(f"possible update top_left: {top_left_x}, {top_left_y}")
+                        self.get_logger().info(f"possible update bottom_right: {bottom_right_x}, {bottom_right_y}")
 
         
         #In case no bounding box is found, we send a midpoint of coordinates (0,0)
@@ -339,8 +349,8 @@ class TriggerTracking(Node):
             self.empty_midpoint_count += 1
             
         else:
-            self.person_tracked_msg.middle_point = self.person_tracked_midpoint #self.denormalize()
-            self.person_tracked_msg.bounding_box = bounding_box
+            self.person_tracked_msg.middle_point = copy(self.person_tracked_midpoint)#self.denormalize()
+            self.person_tracked_msg.bounding_box = copy(bounding_box)
             self.empty_midpoint_count = 0
             self.get_logger().info(f'Midpoint updated to {self.person_tracked_msg.middle_point}') 
             
