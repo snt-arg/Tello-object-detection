@@ -152,7 +152,7 @@ class TrackPerson(Node):
         
         #publishers
         self.publisher_commands = self.create_publisher(Twist,self.commands_topic,10)
-        self.timer = self.create_timer(0.09, self.commands_callback)
+        self.timer = self.create_timer(0.05, self.commands_callback)
         #self.timer_1 = self.create_timer(10, self.commands_callback)
 
         self.publisher_takeoff = self.create_publisher(Empty,self.takeoff_topic,1)
