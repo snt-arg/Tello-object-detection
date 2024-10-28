@@ -159,12 +159,13 @@ class DetectAll(PluginBase):
         #detection of persons in the frame. Only detections with a certain confidence level (minimum_prob) are  considered.
         results = model.track(frame, persist=True, classes=classes_ID, conf=self.minimum_prob)
 
-        #temporary variable to hold each bounding box's coordinates on the frame.
-        box_msg = Box()
+        
 
         #Saving all bounding boxes's coordinates in self.boxes
         self.boxes = AllBoundingBoxes()
         for box in results[0].boxes.xyxyn.tolist(): #normalized coordinates (within 0 and 1)
+            #temporary variable to hold each bounding box's coordinates on the frame.
+            box_msg = Box()
             box_msg.top_left.x = box[0]
             box_msg.top_left.y = box[1]
             box_msg.bottom_right.x = box[2]
@@ -198,7 +199,7 @@ class DetectAll(PluginBase):
             self.get_logger().info("Can't publish bounding boxes. No information received yet")    
         else:
             self.publisher_bounding_boxes.publish(self.boxes)
-            self.get_logger().info("Publishing a bounding boxes")
+            self.get_logger().info("Publishing a bounding boxes list")
 
     def key_pressed_callback(self)->None:
         keys = self.pg_interface.get_key_pressed()
