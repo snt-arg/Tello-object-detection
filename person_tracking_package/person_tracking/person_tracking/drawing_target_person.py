@@ -81,7 +81,7 @@ class DrawTarget(Node):
     def _init_publishers(self)->None:
         """Method to initialize publishers"""
         self.publisher_drawing = self.create_publisher(Image,self.drawing_person_tracked_topic,10)
-        self.timer_1 = self.create_timer(0.09,self.drawing_person_tracked_callback)
+        self.timer_1 = self.create_timer(0.05,self.drawing_person_tracked_callback)
         
 
     def _init_subscriptions(self)->None:
@@ -120,15 +120,16 @@ class DrawTarget(Node):
     def draw_rectangle(self,raw_image):
         if raw_image is not None and self.person_tracked_position is not None:
             midpoint = self.person_tracked_position.middle_point
-            bounding_box = self.person_tracked_position.bounding_box
-            top_left_point = (round(bounding_box.top_left.x * self.image_width),round(bounding_box.top_left.y * self.image_height))
-            bottom_right_point = (round(bounding_box.bottom_right.x * self.image_width),round(bounding_box.bottom_right.y * self.image_height))
-            cv2.rectangle(raw_image,top_left_point,bottom_right_point,(86, 237, 81),2)
+            if midpoint.x != 0 or midpoint.y != 0:
+                bounding_box = self.person_tracked_position.bounding_box
+                top_left_point = (round(bounding_box.top_left.x * self.image_width),round(bounding_box.top_left.y * self.image_height))
+                bottom_right_point = (round(bounding_box.bottom_right.x * self.image_width),round(bounding_box.bottom_right.y * self.image_height))
+                cv2.rectangle(raw_image,top_left_point,bottom_right_point,(86, 237, 81),2)
 
-            circle_center = (round(midpoint.x * self.image_width),round(midpoint.y * self.image_height))
-            cv2.circle(raw_image,circle_center,20,(166, 237, 164),-1)
-            cv2.circle(raw_image,circle_center,15,(118, 237, 114),-1)
-            cv2.circle(raw_image,circle_center,10,(86, 237, 81),-1)
+                circle_center = (round(midpoint.x * self.image_width),round(midpoint.y * self.image_height))
+                cv2.circle(raw_image,circle_center,20,(166, 237, 164),-1)
+                cv2.circle(raw_image,circle_center,15,(118, 237, 114),-1)
+                cv2.circle(raw_image,circle_center,10,(86, 237, 81),-1)
             return raw_image
         return None
 
