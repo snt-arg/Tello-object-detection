@@ -14,11 +14,9 @@ from person_tracking_msgs.msg import PersonTracked, PointMsg
 #For image manipulation (OpenCV)
 import cv2
 
-
 import math
 
-
-from person_tracking.pid import PIDPoint
+from person_tracking.pid import PID
 
 from collections import deque
 
@@ -76,8 +74,10 @@ class TrackPerson(Node):
         #init publishers
         self._init_publishers()
 
-        self.pid = PIDPoint((0.5, 0.5)) #middle of the screen for normalized midpoint coordinates
-       
+        self.pid_y_axis = PID(0.5,(0.1,0.1,0),(-0.3,0.3)) # Controller for y axis (horizontal position to keep the person within the field of view)
+        self.pid_x_axis = PID(1,(0.1,0.1,0),(-0.3,0.3)) # Controller for x axis (distance between drone and target person).
+        self.pid_z_axis = PID(0.5,(0.1,0.1,0),(-0.1,0.1)) # controller for z axis (altitude)
+
         self.person_tracked_midpoint = None
 
         self.bounding_box_size = None
@@ -86,7 +86,7 @@ class TrackPerson(Node):
 
         self.commands_msg = None
 
-        self.correction = None
+        #self.correction = None
         
         #Queue to keep the last nonempty midpoints. Help to calculate the trajectory of the person before he got lost
         self.midpoint_queue = deque(maxlen=self.max_length_midpoint_queue)
@@ -185,7 +185,7 @@ class TrackPerson(Node):
             self.midpoint_queue.append(self.person_tracked_midpoint)
             self.empty_midpoint_count = 0
             self.get_logger().info(f'midpoint {self.person_tracked_midpoint}')
-            self.correction = self.pid.compute(self.person_tracked_midpoint)
+            #self.correction = self.pid.compute(self.person_tracked_midpoint)
 
     def direction_person_lost(self)->str|None:
         """Function to determine whether the drone should rotate left, right, up or down to find the lost person"""
@@ -292,50 +292,66 @@ class TrackPerson(Node):
                 return None
 
             
-            if self.person_tracked_midpoint is not None and self.correction is not None:
-                correction_x, correction_y = self.correction
-                self.get_logger().info(f'Correction x:{correction_x}, y:{correction_y}')
-                #self.get_logger().info(f'midpoint {self.person_tracked_midpoint}')
+            #if self.person_tracked_midpoint is not None: 
+            #    correction = self.pid.compute(self.person_tracked_midpoint)
+            #    correction_x = self.correction
+               
 
-                if self.person_tracked_midpoint.x < 0.3:#correction_x < -0.6 : #Here I don't put 0 to avoid having the drone always moving
-                    self.get_logger().info("move left") #(a in keyboard mode control station) 
-                    self.commands_msg.linear.y = 0.22
+            #    if self.person_tracked_midpoint.x < 0.3:#correction_x < -0.6 : #Here I don't put 0 to avoid having the drone always moving
+            #        self.get_logger().info("move left") #(a in keyboard mode control station) 
+            #        self.commands_msg.linear.y = 0.22
                      
-                elif self.person_tracked_midpoint.x > 0.6:#correction_x > 0.6 :
-                    self.get_logger().info("move right") #(d in keyboard mode control station )             
-                    self.commands_msg.linear.y = -0.22
+            #    elif self.person_tracked_midpoint.x > 0.6:#correction_x > 0.6 :
+            #        self.get_logger().info("move right") #(d in keyboard mode control station )             
+            #        self.commands_msg.linear.y = -0.22
             
-            if self.bounding_box_size is not None:
-                self.get_logger().info(f"Bounding box size : {self.bounding_box_size}") 
-                if self.bounding_box_size < 0.5 and self.bounding_box_size > 0:
-                    self.get_logger().info("approach") 
-                    self.commands_msg.linear.x = 0.22
+            #if self.bounding_box_size is not None:
+            #    self.get_logger().info(f"Bounding box size : {self.bounding_box_size}") 
+            #    if self.bounding_box_size < 0.5 and self.bounding_box_size > 0:
+            #        self.get_logger().info("approach") 
+            #        self.commands_msg.linear.x = 0.22
 
-                elif self.bounding_box_size > 1.:
+                #elif self.bounding_box_size > 1.:
+                #    self.get_logger().info("move back")
+                #    self.commands_msg.linear.x = -0.22
+            
+            if self.person_tracked_midpoint is not None:
+                # controls horizontal position
+                correction_y = self.pid_y_axis.compute(self.person_tracked_midpoint.x)
+                self.commands_msg.linear.y = correction_y
+
+                #logs
+                if correction_y > 0:
+                    self.get_logger().info("move left") #(a in keyboard mode control station) 
+                elif correction_y < 0:
+                    self.get_logger().info("move right") #(d in keyboard mode control station )  
+
+
+                # controls altitude
+                correction_z = self.pid_z_axis.compute(self.person_tracked_midpoint.y)
+                self.commands_msg.linear.z = - correction_z # we take the opposite of correction_z because the vertical axis obeys computer vision's convention : it points down, not up.
+
+                #logs
+                if correction_z < 0:
+                    self.get_logger().info("move up") 
+                elif correction_z > 0:
+                    self.get_logger().info("move down") 
+
+            if self.bounding_box_size is not None:
+                # controls distance between drone and target person
+                correction_x = self.pid_x_axis.compute(self.bounding_box_size)
+
+                #logs
+                self.commands_msg.linear.x = correction_x
+                if correction_x > 0:
+                    self.get_logger().info("approach") 
+                elif correction_x < 0:
                     self.get_logger().info("move back")
-                    self.commands_msg.linear.x = -0.22
 
             self.publisher_commands.publish(self.commands_msg) 
         
         return None
-            #if correction_y < -0.6 :
-            #    print("move down")
-                #print("move up")
-                #if self.move_down > 0:
-            #    self.commands_msg.linear.z -= 0.3
-                #    self.move_down -= 1
-                #else:
-                #    self.commands_msg.linear.z += 0.0
-
-            #elif correction_y > 0.6 :
-            #    print("move up")
-                #print("move down")
-                #if self.move_up > 0:
-            #    self.commands_msg.linear.z += 0.3
-                 #   self.move_up -= 1
-                #else:
-                #    self.commands_msg.linear.z += 0.0
-
+            
 
     def person_lost(self):
         """Function to call when someone is lost.
@@ -375,29 +391,6 @@ class TrackPerson(Node):
             self.publisher_land.publish(Empty()) #land if we found no one after a complete rotation
             self.flying = False
     
-    """
-    def move_y(self,speed, target_distance)->None:
-        #Function to move the drone left or right with a PID
-        if self.commands_msg is not None:
-            self.rotating = True
-            current_distance = 0
-            self.commands_msg.linear.y = angular_speed#pi
-
-            t0 = self.get_clock().now()
-
-            while abs(current_distance) < abs(target_distance):
-
-                self.publisher_commands.publish(self.commands_msg) 
-
-                t1 = self.get_clock().now()
-
-                current_distance = self.commands_msg.linear.y * ((t1-t0).to_msg().sec)
-
-            self.get_logger().info(f"After rotating ,angular.z is {self.commands_msg.angular.z} and current_angle is {current_angle}")
-            self.rotating = False
-            self.publisher_land.publish(Empty()) #land if we found no one after a complete rotation
-            self.flying = False
-    """
 
     def empty_midpoint(self, midpoint):
         """Function to test if the current midpoint is empty (x==0 and y==0). 
