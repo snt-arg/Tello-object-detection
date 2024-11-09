@@ -4,6 +4,7 @@ This repository contains two ROS packages. The first one, [tello](https://github
 
 
 <img src="module architecture.png">
+
 ## 🔍 Table Of Contents
 
 - [🛠 Installation](#installation)
