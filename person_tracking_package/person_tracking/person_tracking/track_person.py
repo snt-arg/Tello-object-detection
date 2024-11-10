@@ -58,9 +58,7 @@ class TrackPerson(Node):
        
     publisher_land = None
         
-    
-
-    
+        
     def __init__(self,name):
         #Creating the Node
         super().__init__(name)
