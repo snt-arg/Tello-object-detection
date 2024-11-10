@@ -13,7 +13,7 @@ from person_tracking_msgs.msg import AllBoundingBoxes, Box
 #To convert cv2 images to ROS Image messages
 from cv_bridge import CvBridge
 
-#Node base to be able to integrate our project to the Tello_ws
+#Node base to be able to integrate our project to the Behaviour tree
 from plugin_server_base.plugin_base import PluginBase, NodeState
 
 #Pygame interface
