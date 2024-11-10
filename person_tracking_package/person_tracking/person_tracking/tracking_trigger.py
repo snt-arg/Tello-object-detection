@@ -12,6 +12,9 @@ from hand_gestures_msgs.msg import Landmarks, Landmark
 #person tracked messages and bounding boxes messages
 from person_tracking_msgs.msg import PersonTracked, PointMsg, AllBoundingBoxes, Box
 
+#Node base to be able to integrate our project to the Behaviour tree
+from plugin_server_base.plugin_base import PluginBase, NodeState
+
 
 #To handle math formula
 import math
@@ -21,7 +24,8 @@ from copy import copy
 #To convert cv2 images to ROS Image messages
 from cv_bridge import CvBridge
 
-class TriggerTrackingStandalone(Node):
+
+class TriggerTrackingStandalone(PluginBase):
 
     #Topic names
     hand_landmarks_topic = "/hand/landmarks"
@@ -139,7 +143,7 @@ class TriggerTrackingStandalone(Node):
     def _init_publishers(self)->None:
         """Method to initialize publishers"""
         self.publisher_to_track = self.create_publisher(PersonTracked,self.person_tracked_topic,10)
-        self.timer_1 = self.create_timer(0.05, self.person_tracked_callback)
+        #self.timer_1 = self.create_timer(0.05, self.person_tracked_callback)
         
 
     def _init_subscriptions(self)->None:
@@ -364,9 +368,18 @@ class TriggerTrackingStandalone(Node):
             return True
         else: 
             return False  
+        
+    def tick(self) -> NodeState:
+        """This method is a mandatory for PluginBase node. It defines what we want our node to do.
+        It gets called 20 times a second if state=RUNNING
+        Here we call callback functions to publish a detection frame and the list of bounding boxes.
+        """
+        self.person_tracked_callback()
+        
+        return NodeState.RUNNING
                
 ###################################################################################################################################       
-class TriggerTrackingLanguageCommands(Node):
+class TriggerTrackingLanguageCommands(PluginBase):
 
     #Topic names
     person_tracked_topic = "/person_tracked"
@@ -600,6 +613,16 @@ class TriggerTrackingLanguageCommands(Node):
             return True
         else: 
             return False  
+        
+    def tick(self) -> NodeState:
+        """This method is a mandatory for PluginBase node. It defines what we want our node to do.
+        It gets called 20 times a second if state=RUNNING
+        Here we call callback functions to publish a detection frame and the list of bounding boxes.
+        """
+        self.person_tracked_callback()
+        
+        return NodeState.RUNNING
+               
 
 #############################################################################################################################################################
 
@@ -621,7 +644,6 @@ def main(args=None):
     #Execute the callback function until the global executor is shutdown
     rclpy.spin(trigger_tracking)
     
-
     #destroy the node. It is not mandatory, since the garbage collection can do it
     trigger_tracking.destroy_node()
     
