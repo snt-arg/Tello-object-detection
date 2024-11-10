@@ -14,7 +14,10 @@ from cv_bridge import CvBridge
 #To draw rectangles
 import cv2 
 
-class DrawTarget(Node):
+#Node base to be able to integrate our project to the Behaviour tree
+from plugin_server_base.plugin_base import PluginBase, NodeState
+
+class DrawTarget(PluginBase):
 
     #Topic names
     image_raw_topic = "/camera/image_raw"
@@ -81,7 +84,7 @@ class DrawTarget(Node):
     def _init_publishers(self)->None:
         """Method to initialize publishers"""
         self.publisher_drawing = self.create_publisher(Image,self.drawing_person_tracked_topic,10)
-        self.timer_1 = self.create_timer(0.05,self.drawing_person_tracked_callback)
+        #self.timer_1 = self.create_timer(0.05,self.drawing_person_tracked_callback)
         
 
     def _init_subscriptions(self)->None:
@@ -132,6 +135,15 @@ class DrawTarget(Node):
                 cv2.circle(raw_image,circle_center,10,(86, 237, 81),-1)
             return raw_image
         return None
+    
+    def tick(self) -> NodeState:
+        """This method is a mandatory for PluginBase node. It defines what we want our node to do.
+        It gets called 20 times a second if state=RUNNING
+        Here we call callback functions to publish a detection frame and the list of bounding boxes.
+        """
+        self.drawing_person_tracked_callback()
+        
+        return NodeState.RUNNING
 
            
 ###################################################################################################################################       
