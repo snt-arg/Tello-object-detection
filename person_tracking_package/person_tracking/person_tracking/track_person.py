@@ -105,6 +105,8 @@ class TrackPerson(Node):
 
         self.rotating = False #variable to check if the drone is rotating
 
+        self.tracking = False #Boolean variable. if it is True, we send velocity messages, if not, we do not send Twist messages on /cmd_vel.
+
         
 
 
@@ -178,7 +180,12 @@ class TrackPerson(Node):
             self.empty_midpoint_count += 1
             self.get_logger().info("Empty midpoint")
             self.update_midpoint = False
+
+        elif self.stop_tracking_signal_midpoint(tmp):
+            self.tracking = False
+
         else:
+            self.tracking = True 
             self.update_midpoint = True
             self.person_tracked_midpoint = tmp
             self.bounding_box_size = math.sqrt((msg.bounding_box.top_left.x - msg.bounding_box.bottom_right.x)**2 +(msg.bounding_box.top_left.y - msg.bounding_box.bottom_right.y)**2)
@@ -242,11 +249,12 @@ class TrackPerson(Node):
                       
 ######################### Publisher #####################################################################################################
     def commands_callback(self):
-        self.land_takeoff()
-        #if self.flying and not self.rotating:
-        if not self.rotating:
-            #command_thread = Thread(target=self.update_commands).start()
-            self.update_commands()
+        if self.tracking:
+            self.land_takeoff()
+            #if self.flying and not self.rotating:
+            if not self.rotating:
+                #command_thread = Thread(target=self.update_commands).start()
+                self.update_commands()
             
 
     def update_commands(self)->None:
@@ -400,6 +408,17 @@ class TrackPerson(Node):
             return True
         else:
             return False  
+        
+    def stop_tracking_signal_midpoint(self,midpoint):
+        """Function to test if the midpoint is (-1 ,-1). 
+        Returns True if the midpoint is (-1,-1), and false else
+        Precondition : midpoint is not None and is of type PointMsg"""
+        if midpoint.x == -1 and midpoint.y == -1:
+            return True
+        else:
+            return False  
+
+
 
     def land_takeoff(self)->None:
         """Prompts the drone to land or takeoff, depending on the messages received"""
