@@ -24,10 +24,12 @@ from math import pi
 
 from threading import Thread
 
+#Node base to be able to integrate our project to the Behaviour tree
+from plugin_server_base.plugin_base import PluginBase, NodeState
 
 ##NB : all directions : left, right... are from the drone's perspective
 
-class TrackPerson(Node):
+class TrackPerson(PluginBase):
 
     key_pressed_topic = "/key_pressed"
     person_tracked_topic = "/person_tracked"
@@ -58,7 +60,7 @@ class TrackPerson(Node):
        
     publisher_land = None
         
-        
+
     def __init__(self,name):
         #Creating the Node
         super().__init__(name)
@@ -152,8 +154,8 @@ class TrackPerson(Node):
         
         #publishers
         self.publisher_commands = self.create_publisher(Twist,self.commands_topic,10)
-        self.timer = self.create_timer(0.05, self.commands_callback)
-        #self.timer_1 = self.create_timer(10, self.commands_callback)
+        #self.timer = self.create_timer(0.05, self.commands_callback)
+
 
         self.publisher_takeoff = self.create_publisher(Empty,self.takeoff_topic,1)
        
@@ -460,6 +462,14 @@ class TrackPerson(Node):
         else: 
             return False
         
+    def tick(self) -> NodeState:
+        """This method is a mandatory for PluginBase node. It defines what we want our node to do.
+        It gets called 20 times a second if state=RUNNING
+        Here we call callback functions to publish a detection frame and the list of bounding boxes.
+        """
+        self.commands_callback()
+        
+        return NodeState.RUNNING
 
 
 
