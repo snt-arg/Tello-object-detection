@@ -52,7 +52,7 @@ class DetectAll(PluginBase):
     all_detected_topic = "/all_detected"
     bounding_boxes_topic = "/all_bounding_boxes"
     key_pressed_topic = "/key_pressed"
-    persons_objects_topic = "/persons_objects_info"
+    persons_objects_topic = "/tracking_info"
     
     #ROS Subscriptions
     sub_raw = None
@@ -244,6 +244,7 @@ class DetectAll(PluginBase):
                 object_possessor_dict[possessor_index].append(object_class)
             else:
                 object_possessor_dict[possessor_index] = [object_class]
+            #object_possessor_dict[1] = ["hat"]
 
         # For loop to build the list of infos about each person.
         # For each person we save the coordinates of the bounding box, the id assigned by the YOLO model, and the list of objects that the person possesses
@@ -255,7 +256,7 @@ class DetectAll(PluginBase):
             info_dict["bottom_right"] = (person_coordinates[2],person_coordinates[3])
             info_dict["top_left"] = (person_coordinates[0],person_coordinates[1])
             info_dict["YOLO_id"] = person_id
-            info_dict["objects"] = object_possessor_dict.get(person_counter,[])
+            info_dict["objects"] = ["hat"] if person_counter == 0 else [] #object_possessor_dict.get(person_counter,[])
 
             # Additional format needed by convention
             person_dict = dict()
@@ -269,6 +270,8 @@ class DetectAll(PluginBase):
         # JSON string message to send to LLM command interpreter
 
         self.json_string_msg.data = json.dumps(tojson_list)
+
+        print(str(self.json_string_msg.data))
 
         #returning the image where bounding boxes are displayed
         frame_ = results[0].plot()
