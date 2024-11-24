@@ -24,6 +24,8 @@ from copy import copy
 #To convert cv2 images to ROS Image messages
 from cv_bridge import CvBridge
 
+import json
+
 
 class TriggerTrackingStandalone(PluginBase):
 
@@ -384,18 +386,17 @@ class TriggerTrackingLanguageCommands(PluginBase):
     #Topic names
     person_tracked_topic = "/person_tracked"
     bounding_boxes_topic = "/all_bounding_boxes"
-    tracking_signal_topic = "/tobedefined"
+    tracking_signal_topic = "/tracking_info_b"
 
     #amount of midpoints to receive before concluding that the person is lost. 
     max_empty_midpoint_before_lost = 10
 
-    #subscribers\
+    #subscribers
     sub_bounding_boxes = None
     sub_tracking_signal = None
 
     #publisher
     publisher_to_track = None
-    timer_1 = None
 
     
     def __init__(self,name):
@@ -449,7 +450,7 @@ class TriggerTrackingLanguageCommands(PluginBase):
         self.declare_parameter("tracking_signal_topic",self.tracking_signal_topic)
 
 
-        self.person_tracked_topic= (
+        self.person_tracked_topic = (
         self.get_parameter("person_tracked_topic").get_parameter_value().string_value
         )
 
@@ -469,7 +470,7 @@ class TriggerTrackingLanguageCommands(PluginBase):
     def _init_publishers(self)->None:
         """Method to initialize publishers"""
         self.publisher_to_track = self.create_publisher(PersonTracked,self.person_tracked_topic,10)
-        self.timer_1 = self.create_timer(0.05, self.person_tracked_callback)
+
         
 
     def _init_subscriptions(self)->None:
@@ -487,16 +488,19 @@ class TriggerTrackingLanguageCommands(PluginBase):
 ######################### Second subscriber ####################################################################################################
     def tracking_signal_listener_callback(self, signal_msg):
         """Callback function to receive the signal message to start tracking a person at a specific location"""
-        action,pos = signal_msg
-        if action == "start":
+        infodict = json.load(signal_msg.data)
+
+        if self.tracking == False and infodict["action"] == "tracking":
             self.tracking = True
             self.person_tracked_midpoint = PointMsg()
-            self.person_tracked_midpoint.x = pos.x
-            self.person_tracked_midpoint.y = pos.y
-        
-        elif action == "stop": 
+            bottom_right = infodict["info"]["bottom_right"]
+            top_left = infodict["info"]["top_left"]
+            self.person_tracked_midpoint.x = (bottom_right[0] + top_left[0]) / 2 
+            self.person_tracked_midpoint.y = (bottom_right[1] + top_left[1]) / 2
+
+        elif infodict["action"] == "stop tracking":
             self.tracking = False
-            self.person_tracked_midpoint = None
+            self.person_tracked_midpoint = PointMsg()
 
 ######################### First Publisher #####################################################################################################
     def person_tracked_callback(self):
@@ -535,8 +539,8 @@ class TriggerTrackingLanguageCommands(PluginBase):
 
             else :#if we didn't receive a signal to track the person or received the signal to stop tracking the person, we send midpoint(-1,-1) to tell tracker_node to stop sending velocity messages
                 self.person_tracked_msg = PersonTracked()
-                self.person_tracked_msg.middle_point.x = -1
-                self.person_tracked_msg.middle_point.y = -1
+                self.person_tracked_msg.middle_point.x = -1.0
+                self.person_tracked_msg.middle_point.y = -1.0
                 self.publisher_to_track.publish(self.person_tracked_msg)
                 
                                             
@@ -633,7 +637,8 @@ def main(args=None):
     #running mode of the whole person_tracking package.
     # if running_mode == "language_commands", the package will wait to receive a command from LLM package before starting to track a specific person
     # if running_mode == "standalone", the package runs normally (tracking is triggered and stopped by hand gestures)
-    running_mode = "standalone"
+    #running_mode = "standalone"
+    running_mode = "llm"
 
     #Node instantiation
     if running_mode == "standalone":
