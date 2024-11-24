@@ -356,6 +356,7 @@ class TrackPerson(PluginBase):
                 elif correction_x < 0:
                     self.get_logger().info("move back")
 
+            
             self.publisher_commands.publish(self.commands_msg) 
         
         return None
@@ -389,7 +390,7 @@ class TrackPerson(PluginBase):
                     self.empty_midpoint_count = 0
                     self.get_logger().info(f"While rotating, found a person to track")
                     return 
-                self.publisher_commands.publish(self.commands_msg) 
+                #self.publisher_commands.publish(self.commands_msg) 
                 t1 = self.get_clock().now()
 
                 current_angle = self.commands_msg.angular.z * ((t1-t0).to_msg().sec)
