@@ -1,0 +1,377 @@
+#To handle ROS node
+import rclpy
+from rclpy.node import Node
+
+#ROS image message
+#from sensor_msgs.msg import Image
+from std_msgs.msg import String 
+
+
+#person tracked messages and bounding boxes messages
+from person_tracking_msgs.msg import PersonTracked, PointMsg, AllBoundingBoxes, Box
+
+from copy import copy
+
+import json
+             
+###################################################################################################################################       
+class TriggerTrackingLLM(Node):
+
+    #Topic names
+    person_tracked_topic = "/person_tracked"
+    bounding_boxes_topic = "/all_bounding_boxes"
+    tracking_signal_topic = "/tracking_info_b"
+
+    #amount of midpoints to receive before concluding that the person is lost. 
+    max_empty_midpoint_before_lost = 10
+
+    #subscribers
+    sub_bounding_boxes = None
+    sub_tracking_signal = None
+
+    #publisher
+    publisher_to_track = None
+    timer = None
+
+    
+    def __init__(self,name):
+
+        #Creating the Node
+        super().__init__(name)
+
+        #init topic names
+        self._init_parameters()
+
+        #init subscribers
+        self._init_subscriptions()
+        
+        #init publishers
+        self._init_publishers()
+        
+
+        #Variable to receive bounding boxes containing all persons detected
+        self.boxes = None
+
+        #variable to contain the midpoint of the bounding box around the person we want to track
+        self.person_tracked_midpoint = None
+
+        #Coordinates of the bounding box around the pilot person
+        self.person_box = None
+
+        #Variable to contain the custom message to send to the ROS node responsible of following the person
+        self.person_tracked_msg = PersonTracked()
+
+        #Boolean variable to know whether to start or stop the tracking when receiving a tracking signal
+        self.tracking = False 
+         
+        #Variable to count empty midpoints. We send an empty midpoint when the midpoint of the tracked person doesn't change.
+        #When the person gets out of the field of view, the midpoint will stay the same for a long period. 
+        #Hence, if for a certain amount of time, the midpoint doesn't change, 
+        #we can conclude that the person went out of the field of view of the camera, and we can rotate.
+        self.empty_midpoint_count = 0 #variable to count the amount of empty messages received. If this number is higher than a certain number, the person is considered lost.
+
+        ### test
+        """self.i = 0"""
+        ### end test
+        
+         
+        
+    def _init_parameters(self)->None:
+        """Method to initialize parameters such as ROS topics' names """
+
+        #Topic names
+        self.declare_parameter("person_tracked_topic",self.person_tracked_topic) 
+        self.declare_parameter("bounding_boxes_topic", self.bounding_boxes_topic)
+        self.declare_parameter("max_empty_midpoint_before_lost",self.max_empty_midpoint_before_lost)
+        self.declare_parameter("tracking_signal_topic",self.tracking_signal_topic)
+
+
+        self.person_tracked_topic = (
+        self.get_parameter("person_tracked_topic").get_parameter_value().string_value
+        )
+
+        self.bounding_boxes_topic = (
+        self.get_parameter("bounding_boxes_topic").get_parameter_value().string_value
+        )
+
+        self.max_empty_midpoint_before_lost = (
+        self.get_parameter("max_empty_midpoint_before_lost").get_parameter_value().integer_value
+        )
+
+        self.tracking_signal_topic = (
+        self.get_parameter("tracking_signal_topic").get_parameter_value().string_value
+        )
+
+
+    def _init_publishers(self)->None:
+        """Method to initialize publishers"""
+        self.publisher_to_track = self.create_publisher(PersonTracked,self.person_tracked_topic,10)
+        self.timer = self.create_timer(self.publishing_rate, self.person_tracked_callback)
+
+
+        
+
+    def _init_subscriptions(self)->None:
+        """Method to initialize subscriptions"""
+        self.sub_bounding_boxes = self.create_subscription(AllBoundingBoxes,self.bounding_boxes_topic, self.bounding_boxes_listener_callback,5)
+        self.sub_tracking_signal = self.create_subscription(String,self.tracking_signal_topic,self.tracking_signal_listener_callback,5)
+
+########################### First Subscriber ##################################################################################################   
+    def bounding_boxes_listener_callback(self, boxes_msg):
+        """Callback function for the subscriber node (to topic /all_bounding_boxes).
+        For each bounding box received, save it in a variable for processing"""
+        self.get_logger().info('Bounding boxes message received')
+        self.boxes = boxes_msg
+
+        ### test
+        """if self.boxes is not None and self.boxes.bounding_boxes != []: 
+            if self.i == 0:
+                self.tracking = True
+                bounding_boxes = copy(self.boxes.bounding_boxes)
+                self.person_tracked_midpoint = PointMsg()
+    
+                self.person_box = copy(bounding_boxes[0])
+                self.person_tracked_midpoint.x = (self.person_box.bottom_right.x + self.person_box.top_left.x) / 2 
+                self.person_tracked_midpoint.y = (self.person_box.bottom_right.y + self.person_box.top_left.y) / 2
+
+                self.get_logger().info(f"\nFound the pilot person indicated in the tracking signal. Midpoint : {self.person_tracked_midpoint}")
+
+                self.person_tracked_msg = PersonTracked()
+                self.person_tracked_msg.middle_point = copy(self.person_tracked_midpoint)
+                self.person_tracked_msg.bounding_box = copy(self.person_box)
+                
+                self.publisher_to_track.publish(self.person_tracked_msg)"""
+
+        ## end test
+     
+######################### Second subscriber ####################################################################################################
+    def tracking_signal_listener_callback(self, signal_msg):
+        """Callback function to receive the signal message to start tracking a person at a specific location"""
+        infodict = json.load(signal_msg.data)
+
+        # if we aren't tracking and receive a tracking signal prompting to start the tracking:
+        if self.tracking == False and infodict["action"] == "tracking":
+            self.tracking = True
+            self.person_tracked_midpoint = PointMsg()
+            bottom_right = infodict["info"]["bottom_right"]
+            top_left = infodict["info"]["top_left"]
+
+
+            self.person_box = Box()
+            self.person_box.top_left.x = top_left[0]
+            self.person_box.top_left.y = top_left[1]
+            self.person_box.bottom_right.x = bottom_right[0]
+            self.person_box.bottom_right.y = bottom_right[1]
+
+            # Search the pilot person box in our list of bounding boxes
+            self.find_bounding_box_of_pilot_person()
+
+        # if we receive a message to stop the tracking.
+        elif infodict["action"] == "stop tracking":
+            self.tracking = False
+            self.person_tracked_midpoint = PointMsg()
+
+######################### First Publisher #####################################################################################################
+    def person_tracked_callback(self):
+        """This function listens to the /hand/landmarks topic, and waits to spot the person who did the triggering move. 
+        In case a person did the trigger move, the midpoint of the bounding box around that person is published on a the topic named /person_tracked. 
+        The last node (track_person.py) will subscribe to /person_tracked and send commands to the drone to follow the tracked person."""
+
+        
+        if self.boxes is None:
+            self.get_logger().info("No bounding box received")
+
+        else:
+            if not self.boxes.bounding_boxes:#empty lists in Python can be evaluated as a boolean False. Hence this test is to make sure that boxes are received
+                self.get_logger().info(f"The list of bounding boxes is empty. Hence, maybe no detection were made.")
+
+            if self.tracking :
+                if not self.person_lost(): #if the tracked person is not lost (is still within the camera's field)
+                    self.person_tracked_msg = PersonTracked()
+                    self.update_middlepoint()
+                    self.publisher_to_track.publish(self.person_tracked_msg) 
+                    self.get_logger().info(f"\nNow we know the person to track. midpoint is {self.person_tracked_msg.middle_point} \n")
+                
+                else: #if the tracked person is lost, we start tracking the person detected by our YOLO model with the highest confidence score (the person from the first bounding box)
+                    
+                    if self.boxes.bounding_boxes:#empty lists in Python can be evaluated as a boolean False. Hence this test is to make sure that boxes are received
+                        # reset empty midpoint count because we found a person
+                        self.empty_midpoint_count = 0
+
+                        # Update coordinates of new pilot person
+                            # update bounding box coordinates
+                        highest_conf_box = self.boxes.bounding_boxes[0]
+
+                            # update midpoint
+                        self.person_tracked_midpoint = PointMsg()
+                        self.person_tracked_midpoint.x = (highest_conf_box.top_left.x / 2) + (highest_conf_box.bottom_right.x / 2) 
+                        self.person_tracked_midpoint.y = (highest_conf_box.top_left.y / 2) + (highest_conf_box.bottom_right.y / 2)
+
+                        # Log information of the new pilot person
+                        self.get_logger().info(f"\n\n#######################################\n\n#######################################\nStarted tracking a new person!\n#############################################\n")
+                        self.get_logger().info(f'So the midpoint of that person is {self.person_tracked_midpoint}') 
+
+                        # Update custom message to send to track person node
+                        self.person_tracked_msg = PersonTracked()
+                        self.person_tracked_msg.middle_point = copy(self.person_tracked_midpoint)
+                        self.person_tracked_msg.bounding_box = copy(highest_conf_box) 
+                        
+                        # publish new message
+                        self.publisher_to_track.publish(self.person_tracked_msg)
+
+            else :#if we didn't receive a signal to track the person or received the signal to stop tracking the person, we send midpoint(-1,-1) to tell tracker_node to stop sending velocity messages
+                self.person_tracked_msg = PersonTracked()
+                self.person_tracked_msg.middle_point.x = -1.0
+                self.person_tracked_msg.middle_point.y = -1.0
+                self.publisher_to_track.publish(self.person_tracked_msg)
+
+    def find_bounding_box_of_pilot_person(self)->None:
+        """Finds the bounding box of the pilot person
+        Precondition: self.boxes is not None"""
+        
+        #Loop to go through all the bounding boxes to find the box of the pilot person
+        if self.boxes is not None and self.person_box is not None:
+
+            bounding_boxes = copy(self.boxes.bounding_boxes)
+
+            overlap_list = [self.overlapping_area(self.person_box,box) for box in bounding_boxes]
+
+            max_overlap = max(overlap_list, default=-1)  # if the list is empty
+
+            
+
+            if max_overlap == -1:
+            
+                self.get_logger().info(f"\nCannot find the pilot person indicated in the tracking signal")
+                self.tracking = False 
+                return None
+            
+            else:
+                self.person_box = copy(bounding_boxes[overlap_list.index(max_overlap)])
+                self.person_tracked_midpoint.x = (self.person_box.bottom_right.x + self.person_box.top_left.x) / 2 
+                self.person_tracked_midpoint.y = (self.person_box.bottom_right.y + self.person_box.top_left.y) / 2
+
+                self.get_logger().info(f"\nFound the pilot person indicated in the tracking signal. Midpoint : {self.person_tracked_midpoint}")
+
+                self.person_tracked_msg = PersonTracked()
+                self.person_tracked_msg.middle_point = copy(self.person_tracked_midpoint)
+                self.person_tracked_msg.bounding_box = copy(self.person_box)
+                
+                self.publisher_to_track.publish(self.person_tracked_msg)
+                
+        else:
+            self.get_logger().info("No bounding box received or no tracking info received")
+                                    
+    
+    def update_middlepoint(self)->None:
+        """Find the nearest bounding box containing the middlepoint and updates the middlepoint.
+        This function is to use only when we already have a person to track (and hence, self.person_tracked_midpoint is not None)
+
+        Preconditions: self.person_tracked_midpoint is not None
+                      self.boxes is not None
+        """
+        #error between the actual midpoint (self.person_tracked_midpoint) and the midpoint of the bounding box
+        smallest_error_margin = -1
+        prev_midpoint_x = self.person_tracked_midpoint.x
+        prev_midpoint_y = self.person_tracked_midpoint.y
+        bounding_box = Box()
+
+        #Loop to go through all the bounding boxes to find the bounding box whose midpoint is the closest to the midpoint of person tracked in the previous frame.
+        #The midpoint found will be the new midpoint of the person to track
+        for box in self.boxes.bounding_boxes:
+            #Extracting the normalized coordinates of the top left and bottom right corner of each box.            
+            top_left_x = box.top_left.x
+            top_left_y = box.top_left.y
+            bottom_right_x = box.bottom_right.x
+            bottom_right_y = box.bottom_right.y
+
+
+            #self.get_logger().info(f"Searching the person from last midpoint {box}\n")
+            
+            #if the previous midpoint is contained within the box, we calculate the distance between both points
+            #if that distance is the shortest encountered yet, we update the midpoint
+            if top_left_x <= prev_midpoint_x and top_left_y <= prev_midpoint_y:
+                if bottom_right_x >= prev_midpoint_x and bottom_right_y >= prev_midpoint_y:
+                    
+                    new_midpoint_x = top_left_x/ 2 + bottom_right_x/2
+                    new_midpoint_y = top_left_y/2 + bottom_right_y/2
+                    error_margin = self.euclidean_distance_squared(prev_midpoint_x,prev_midpoint_y,new_midpoint_x,new_midpoint_y) #distance between midpoints
+                
+            #updating the midpoint
+            
+                    if (smallest_error_margin == -1) or (error_margin < smallest_error_margin):
+                        self.person_tracked_midpoint.x = new_midpoint_x
+                        self.person_tracked_midpoint.y = new_midpoint_y
+                        smallest_error_margin = error_margin
+                        bounding_box = copy(box)
+
+                        self.get_logger().info(f"possible update top_left: {top_left_x}, {top_left_y}")
+                        self.get_logger().info(f"possible update bottom_right: {bottom_right_x}, {bottom_right_y}")
+
+        
+        #In case no bounding box is found, we send a midpoint of coordinates (0,0)
+        if prev_midpoint_x == self.person_tracked_midpoint.x and prev_midpoint_y == self.person_tracked_midpoint.y:
+            #temp_midpoint = PointMsg() is initialized to x = 0 and y = 0 by default since ROS initializes all numeric values to 0 by default
+            self.person_tracked_msg.middle_point = PointMsg()
+            self.person_tracked_msg.bounding_box = Box()
+            self.empty_midpoint_count += 1
+            
+        else:
+            self.person_tracked_msg.middle_point = copy(self.person_tracked_midpoint)#self.denormalize()
+            self.person_tracked_msg.bounding_box = copy(bounding_box)
+            self.empty_midpoint_count = 0
+            self.get_logger().info(f'Midpoint updated to {self.person_tracked_msg.middle_point}') 
+            
+    
+
+    def euclidean_distance_squared(self,x1,y1,x2,y2):
+        """Calculates the eucliedean distance between two points (x1,y1) and (x2,y2)"""
+        return (x2-x1)**2 + (y2-y1)**2
+
+    def person_lost(self):
+        """Function to call when someone is lost.
+        Returns true when the person is lost and False else."""  
+        if self.empty_midpoint_count >= self.max_empty_midpoint_before_lost:
+            return True
+        else: 
+            return False  
+        
+    def overlapping_area(self,box1,box2):
+        """Function to calculate the overlapping area between two rbounding boxes
+        Parameters: box1 (rectangle given by a Box : Box.top_left.x, Box.top_left.y, Box.bottom_right.x, Box.bottom_right.y)
+                    box2 (rectangle given by a Box : Box.top_left.x, Box.top_left.y, Box.bottom_right.x, Box.bottom_right.y)
+
+        """
+        if isinstance(box1,Box) and isinstance(box2,Box):
+            dx = max(box1.top_left.x, box2.top_left.x) - min(box1.bottom_right.x, box2.bottom_right.x)
+            dy = max(box1.top_left.y, box2.top_left.y) - min(box1.bottom_right.y, box2.bottom_right.y)
+            
+        
+            if dx >= 0 and dy >= 0: # if the rectangles overlap
+                return dx * dy
+            
+            # if the rectangles don't overlap
+            return -1
+    
+        else:
+            raise TypeError("In overlapping area, the rectangles aren't Box objects.")
+
+
+
+#############################################################################################################################################################
+
+def main(args=None):
+    #Initialization ROS communication 
+    rclpy.init(args=args)
+
+
+    #Node instantiation
+    trigger_tracking = TriggerTrackingLLM('trigger_tracking_node')
+
+    #Execute the callback function until the global executor is shutdown
+    rclpy.spin(trigger_tracking)
+    
+    #destroy the node. It is not mandatory, since the garbage collection can do it
+    trigger_tracking.destroy_node()
+    
+    rclpy.shutdown()        
