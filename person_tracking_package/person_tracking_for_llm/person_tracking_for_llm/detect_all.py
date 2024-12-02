@@ -1,11 +1,11 @@
+################################### Imports #######################################
 #To handle ROS node
 import rclpy
-#from rclpy.node import Node
 
 #ROS image message
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image # for camera frames
 
-from std_msgs.msg import String, Empty
+from std_msgs.msg import String # for tracking info
 
 #Custom message to send bounding boxes
 from person_tracking_msgs.msg import AllBoundingBoxes, Box
@@ -25,27 +25,34 @@ from ultralytics import YOLO
 #for gpu 
 import torch
 
+# to convert tracking info in JSON format
 import json
 
-#load the object detection model
+
+
+
+##### Load the yolo model and send to appropriate device
 model = YOLO('yolov8n.pt') 
 
 #use gpu if available, and if not, cpu
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model.to(device)
 
-#Defining claases of interest
-classes_needed = ["person","backpack"]  
+##### Define classes of interest
+
+person_classes = ["person"] # person class names
+objects = ["cell phone"] # list of objects 
+classes_needed = person_classes + objects
 
 #Getting the ids of our classes of interest
 classes = model.names
-classes_ID = [k for k,v in classes.items() if v in classes_needed] 
+classes_ID = [k for k,v in classes.items() if v.lower() in classes_needed] 
 
 
 class DetectAllLLM(PluginBase):
     
     #Minimum confidence probability for a detection to be accepted
-    minimum_prob = 0.4  
+    minimum_prob = 0.4
 
     # Overlapping method
     overlapping_method = "intersection"
@@ -55,7 +62,7 @@ class DetectAllLLM(PluginBase):
     all_detected_topic = "/all_detected" # image frames of which all persons (and specified objects) are detected
     bounding_boxes_topic = "/all_bounding_boxes" # list of person bounding boxes
     key_pressed_topic = "/key_pressed" # topic to get the key pressed on the pygame interface
-    persons_objects_topic = "/tracking_info" # topic to publish the information on persons and objects for llm-base commands package
+    tracking_info_topic = "/tracking_info" # topic to publish the information on persons and objects for llm-base commands package
 
     #ROS Subscriptions
     sub_raw = None
@@ -64,7 +71,7 @@ class DetectAllLLM(PluginBase):
     publisher_all_detected = None
     publisher_bounding_boxes = None
     publisher_key_pressed = None
-    publisher_persons_objects = None
+    publisher_tracking_info = None
 
     def __init__(self,name):
 
@@ -104,6 +111,7 @@ class DetectAllLLM(PluginBase):
         #Variable to perform object detection on only some frames
         self.process = 0
 
+        # Variable to contain the tracking info in JSON format
         self.json_string_msg = None
 
         
@@ -117,15 +125,17 @@ class DetectAllLLM(PluginBase):
         self.declare_parameter("bounding_boxes_topic", self.bounding_boxes_topic )
         self.declare_parameter("key_pressed_topic", self.key_pressed_topic)
         self.declare_parameter("minimum_prob",self.minimum_prob)
-        self.declare_parameter("persons_objects_topic",self.persons_objects_topic)
+        self.declare_parameter("tracking_info_topic",self.tracking_info_topic)
         self.declare_parameter("overlapping_method",self.overlapping_method)
 
         self.image_raw_topic= (
         self.get_parameter("image_raw_topic").get_parameter_value().string_value
         )
+
         self.all_detected_topic= (
         self.get_parameter("all_detected_topic").get_parameter_value().string_value
         )
+
         self.bounding_boxes_topic = (
         self.get_parameter("bounding_boxes_topic").get_parameter_value().string_value
         )
@@ -138,8 +148,8 @@ class DetectAllLLM(PluginBase):
         self.get_parameter("minimum_prob").get_parameter_value().double_value
         ) 
 
-        self.persons_objects_topic = (
-        self.get_parameter("persons_objects_topic").get_parameter_value().string_value
+        self.tracking_info_topic = (
+        self.get_parameter("tracking_info_topic").get_parameter_value().string_value
         ) 
 
         self.overlapping_method = (
@@ -152,7 +162,7 @@ class DetectAllLLM(PluginBase):
         self.publisher_all_detected = self.create_publisher(Image,self.all_detected_topic,5)
         self.publisher_bounding_boxes = self.create_publisher(AllBoundingBoxes,self.bounding_boxes_topic,5)
         self.publisher_key_pressed = self.create_publisher(String,self.key_pressed_topic,5)
-        self.publisher_persons_objects = self.create_publisher(String,self.persons_objects_topic,5)
+        self.publisher_tracking_info = self.create_publisher(String,self.tracking_info_topic,5)
         
 
     def _init_subscriptions(self)->None:
@@ -168,24 +178,30 @@ class DetectAllLLM(PluginBase):
         For each image received, it saves in the log that an image has been received.
         Then converts that image into cv2 format before performing object detection on that image and saving 
         the result in self.image_all_detected"""
+
+        # we process only 1/4 of frames to reduce computing power consumption
         if self.process % 4 == 0:
+
             self.get_logger().info(f"Frame N°{self.frame_counter} received")
             self.frame_counter += 1
-            self.image_raw = self.cv_bridge.imgmsg_to_cv2(img,"rgb8")
-            self.image_all_detected = self.detection(self.image_raw)
-            self.pg_interface.update_bg_image(img)
+        
+            self.image_raw = self.cv_bridge.imgmsg_to_cv2(img,"rgb8") # converting ROS Image message to cv2 image
+            self.image_all_detected = self.detection(self.image_raw) # performing detection on the cv2 image
+            self.pg_interface.update_bg_image(img) # updating the image on the pygame console
+
         self.process += 1
         
     def detection(self,frame)->None:
         """Function to perform person object detection on a single frame.
         It saves the coordinates of all bounding boxes of persons detected on the frame in a variable named self.boxes"""
 
-        #detection of persons in the frame. Only detections with a certain confidence level (minimum_prob) are  considered.
+        # Detection of persons & objects in the frame. Only detections with a certain confidence level (minimum_prob) are  considered.
         results = model.track(frame, persist=True, classes=classes_ID, conf=self.minimum_prob)
 
-        #Saving all bounding boxes's coordinates in self.boxes
+        # Initializing all bounding boxes messages
         self.boxes = AllBoundingBoxes()
         
+        # Initializing tracking info message
         self.json_string_msg = String()
 
         # temporary variable to contain the list of all objects detected
@@ -200,15 +216,14 @@ class DetectAllLLM(PluginBase):
         # list to contain info dictionnary for each person. This list will be converted to JSON. 
         tojson_list = []
         
-
         # For loop to get all go through all detections (persons and objects)
         for box in results[0].boxes:  
             
             # coordinates of the bounding box (top left and bottom right)
             box_coordinates = box.xyxyn[0].tolist() #normalized coordinates (within 0 and 1)
 
-            # class of the detection (person, apple, ...)
-            box_class = classes[box.cls.item()]
+            # class of the detection (person, cell phone, ...)
+            box_class = classes[box.cls.item()].lower()
 
             # if there is an id assigned by the YOLO model, we save it
             if box.id is not None:
@@ -217,7 +232,7 @@ class DetectAllLLM(PluginBase):
                 box_id = None
 
             # If the detection is a person
-            if box_class == "person":
+            if box_class in person_classes:
                 # Saving the coordinates of the bounding box around the person for it to be published on bounding_boxes_topic ("/all_bounding_boxes") 
                 box_msg = Box()
                 box_msg.top_left.x = box_coordinates[0]
@@ -240,6 +255,8 @@ class DetectAllLLM(PluginBase):
                 #Adding the object to the temporary list of objects
                 tmp_list_object.append((box_coordinates,object_class)) 
 
+        # Merging duplicate detections in person classes
+
         # For loop to map each object to its possessor
         for object_coordinates, object_class in tmp_list_object:
 
@@ -247,6 +264,8 @@ class DetectAllLLM(PluginBase):
             overlapping_area_list = [self.overlapping_area(object_coordinates,person_coordinates) for person_coordinates,_ in tmp_list_person]
             max_overlap = max(overlapping_area_list, default=-1)
             # possessor is the person whose bounding box shares the biggest area with the object's box
+
+            print(f"\n%%% overlapping list, {object_class} : {overlapping_area_list}\n")
 
             if max_overlap >= 0: # the overlapping_area method returns -1 if the rectangles don't overlap. So this condition is to ensure that the object's box overlaps with at least one person, before assigning the object to that person
 
@@ -257,7 +276,7 @@ class DetectAllLLM(PluginBase):
                 else:
                     object_possessor_dict[possessor_index] = [object_class]
         
-
+        print(f"\n## Possessors : {object_possessor_dict}\n")
         # For loop to build the list of infos about each person.
         # For each person we save the coordinates of the bounding box, the id assigned by the YOLO model, and the list of objects that the person possesses
 
@@ -268,7 +287,7 @@ class DetectAllLLM(PluginBase):
             info_dict["bottom_right"] = (person_coordinates[2],person_coordinates[3])
             info_dict["top_left"] = (person_coordinates[0],person_coordinates[1])
             info_dict["YOLO_id"] = person_id
-            info_dict["objects"] =  object_possessor_dict.get(person_counter,[]) #["hat"] if person_counter == 0 else []
+            info_dict["objects"] = object_possessor_dict.get(person_counter,[]) #["hat"] if person_counter == 0 else []
 
             # Additional format needed by convention
             person_dict = dict()
@@ -318,7 +337,6 @@ class DetectAllLLM(PluginBase):
     def key_pressed_callback(self)->None:
         keys = self.pg_interface.get_key_pressed()
         msg = String()
-        print("Key pressed")
         # takeoff/land
         if keys[matching_keys["t"]]:
             msg.data = "t"
@@ -331,10 +349,10 @@ class DetectAllLLM(PluginBase):
             return
 
     def person_objects_callback(self)->None:
-        """Callback function for the publisher to the /persons_objects_info topic.
+        """Callback function for the publisher to the /tracking_info topic.
         A list of the coordinates of the bounding boxes around persons, persons ID and the objects they have on them"""
         if self.json_string_msg is not None:
-            self.publisher_persons_objects.publish(self.json_string_msg)
+            self.publisher_tracking_info.publish(self.json_string_msg)
 
     def overlapping_area(self,rect1,rect2):
         """Function to calculate the overlapping area between two rectangles
@@ -342,8 +360,8 @@ class DetectAllLLM(PluginBase):
                     rect2 (rectangle given by a list [top_left_x, top_left_y, bottom_right_x, bottom_right_y])
 
         """
-        dx = max(rect1[0],rect2[0]) - min(rect1[2],rect2[2])
-        dy = max(rect1[1],rect2[1]) - min(rect1[3],rect2[3])
+        dx = min(rect1[2],rect2[2]) - max(rect1[0],rect2[0]) 
+        dy = min(rect1[3],rect2[3]) - max(rect1[1],rect2[1]) 
 
         area1 = abs(rect1[2] - rect1[0]) * abs(rect1[3] - rect1[1]) # area rectangle 1
         area2 = abs(rect2[2] - rect2[0]) * abs(rect2[3] - rect2[1]) # area rectangle 2
