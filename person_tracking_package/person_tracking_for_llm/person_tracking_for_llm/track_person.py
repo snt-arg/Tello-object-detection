@@ -40,7 +40,7 @@ class TrackPersonLLM(Node):
 
     max_empty_midpoint_before_lost = 10
 
-    publishing_rate = 0.03 #30 hetz
+    publishing_rate = 0.01 #30 hetz
 
     #subscribers
     sub_person_tracked = None
@@ -188,6 +188,7 @@ class TrackPersonLLM(Node):
 
         elif self.stop_tracking_signal_midpoint(tmp):
             self.tracking = False
+            # Reset parameters and PID ...
 
         else:
             self.tracking = True 
@@ -203,6 +204,7 @@ class TrackPersonLLM(Node):
         if len(self.midpoint_queue) == self.max_length_midpoint_queue:
             point_1 = self.midpoint_queue[1] #most recent midpoint
             point_2 = self.midpoint_queue[0] #previous midpoint
+            print("Queue", self.midpoint_queue)
             slope = ( point_2.y - point_1.y ) / ( point_2.x - point_1.x ) # zero division risks
             if slope >= 0 :
                 if point_1.x >= point_2.x:
@@ -230,8 +232,8 @@ class TrackPersonLLM(Node):
                       
 ######################### Publisher #####################################################################################################
     def commands_callback(self):
+        self.land_takeoff()
         if self.tracking:
-            self.land_takeoff()
             #if self.flying and not self.rotating:
             if not self.rotating:
                 #command_thread = Thread(target=self.update_commands).start()
@@ -281,7 +283,7 @@ class TrackPersonLLM(Node):
                 return None
 
             
-            if self.person_tracked_midpoint is not None:
+            if (self.person_tracked_midpoint is not None) and (self.bounding_box_size is not None) and self.update_midpoint:
                 # controls horizontal position
                 correction_y = self.pid_y_axis.compute(self.person_tracked_midpoint.x)
                 self.commands_msg.linear.y = correction_y
@@ -289,6 +291,7 @@ class TrackPersonLLM(Node):
                 #logs
                 if correction_y > 0:
                     self.get_logger().info("move left") #(a in keyboard mode control station) 
+                 
                 elif correction_y < 0:
                     self.get_logger().info("move right") #(d in keyboard mode control station )  
 
@@ -303,7 +306,7 @@ class TrackPersonLLM(Node):
                 #elif correction_z > 0:
                 #    self.get_logger().info("move down") 
 
-            if self.bounding_box_size is not None:
+                # self.bounding_box_size must not be none
                 # controls distance between drone and target person
                 correction_x = self.pid_x_axis.compute(self.bounding_box_size)
 
