@@ -20,7 +20,7 @@ class TriggerTrackingLLM(Node):
     #Topic names
     person_tracked_topic = "/person_tracked"
     bounding_boxes_topic = "/all_bounding_boxes"
-    tracking_signal_topic = "/tracking_info_b"
+    tracking_signal_topic = "/tracking_info_pilot_person"
 
     #amount of midpoints to receive before concluding that the person is lost. 
     max_empty_midpoint_before_lost = 10
@@ -32,6 +32,8 @@ class TriggerTrackingLLM(Node):
     #publisher
     publisher_to_track = None
     timer = None
+
+    publishing_rate = 0.05
 
     
     def __init__(self,name):
@@ -71,7 +73,7 @@ class TriggerTrackingLLM(Node):
         self.empty_midpoint_count = 0 #variable to count the amount of empty messages received. If this number is higher than a certain number, the person is considered lost.
 
         ### test
-        """self.i = 0"""
+        #self.i = 0
         ### end test
         
          
@@ -108,8 +110,7 @@ class TriggerTrackingLLM(Node):
         self.publisher_to_track = self.create_publisher(PersonTracked,self.person_tracked_topic,10)
         self.timer = self.create_timer(self.publishing_rate, self.person_tracked_callback)
 
-
-        
+ 
 
     def _init_subscriptions(self)->None:
         """Method to initialize subscriptions"""
@@ -120,7 +121,8 @@ class TriggerTrackingLLM(Node):
     def bounding_boxes_listener_callback(self, boxes_msg):
         """Callback function for the subscriber node (to topic /all_bounding_boxes).
         For each bounding box received, save it in a variable for processing"""
-        self.get_logger().info('Bounding boxes message received')
+
+        self.get_logger().info('\nBounding boxes message received')
         self.boxes = boxes_msg
 
         ### test
@@ -134,20 +136,25 @@ class TriggerTrackingLLM(Node):
                 self.person_tracked_midpoint.x = (self.person_box.bottom_right.x + self.person_box.top_left.x) / 2 
                 self.person_tracked_midpoint.y = (self.person_box.bottom_right.y + self.person_box.top_left.y) / 2
 
-                self.get_logger().info(f"\nFound the pilot person indicated in the tracking signal. Midpoint : {self.person_tracked_midpoint}")
+                self.get_logger().info(f"\nTest found the pilot person indicated in the tracking signal. Midpoint : {self.person_tracked_midpoint}\n")
 
                 self.person_tracked_msg = PersonTracked()
                 self.person_tracked_msg.middle_point = copy(self.person_tracked_midpoint)
                 self.person_tracked_msg.bounding_box = copy(self.person_box)
                 
-                self.publisher_to_track.publish(self.person_tracked_msg)"""
+                self.publisher_to_track.publish(self.person_tracked_msg)
+
+                self.i += 1
+        """       
 
         ## end test
      
 ######################### Second subscriber ####################################################################################################
     def tracking_signal_listener_callback(self, signal_msg):
         """Callback function to receive the signal message to start tracking a person at a specific location"""
-        infodict = json.load(signal_msg.data)
+        self.get_logger().info(f"\n!!!Tracking signal received {signal_msg}!!!\n")
+
+        infodict = json.loads(signal_msg.data)
 
         # if we aren't tracking and receive a tracking signal prompting to start the tracking:
         if self.tracking == False and infodict["action"] == "tracking":
@@ -155,7 +162,6 @@ class TriggerTrackingLLM(Node):
             self.person_tracked_midpoint = PointMsg()
             bottom_right = infodict["info"]["bottom_right"]
             top_left = infodict["info"]["top_left"]
-
 
             self.person_box = Box()
             self.person_box.top_left.x = top_left[0]
@@ -195,35 +201,34 @@ class TriggerTrackingLLM(Node):
                 else: #if the tracked person is lost, we start tracking the person detected by our YOLO model with the highest confidence score (the person from the first bounding box)
                     
                     if self.boxes.bounding_boxes:#empty lists in Python can be evaluated as a boolean False. Hence this test is to make sure that boxes are received
-                        # reset empty midpoint count because we found a person
-                        self.empty_midpoint_count = 0
-
-                        # Update coordinates of new pilot person
-                            # update bounding box coordinates
                         highest_conf_box = self.boxes.bounding_boxes[0]
+                        midpoint = PointMsg()
+                        midpoint.x = (highest_conf_box.top_left.x + highest_conf_box.bottom_right.x) / 2
+                        midpoint.y = (highest_conf_box.top_left.y + highest_conf_box.bottom_right.y) / 2
 
-                            # update midpoint
-                        self.person_tracked_midpoint = PointMsg()
-                        self.person_tracked_midpoint.x = (highest_conf_box.top_left.x / 2) + (highest_conf_box.bottom_right.x / 2) 
-                        self.person_tracked_midpoint.y = (highest_conf_box.top_left.y / 2) + (highest_conf_box.bottom_right.y / 2)
+                        # if the midpoint is updated (it is a new detection)
+                        if midpoint.x != self.person_tracked_midpoint.x or midpoint.y != self.person_tracked_midpoint.y:
+                            self.person_tracked_msg = PersonTracked()
 
-                        # Log information of the new pilot person
-                        self.get_logger().info(f"\n\n#######################################\n\n#######################################\nStarted tracking a new person!\n#############################################\n")
-                        self.get_logger().info(f'So the midpoint of that person is {self.person_tracked_midpoint}') 
+                            self.person_tracked_midpoint = copy(midpoint)
+                            self.person_box = copy(highest_conf_box)
 
-                        # Update custom message to send to track person node
-                        self.person_tracked_msg = PersonTracked()
-                        self.person_tracked_msg.middle_point = copy(self.person_tracked_midpoint)
-                        self.person_tracked_msg.bounding_box = copy(highest_conf_box) 
+                            self.person_tracked_msg.middle_point = copy(self.person_tracked_midpoint)
+                            self.person_tracked_msg.bounding_box = copy(self.person_box)
+
+                            self.empty_midpoint_count = 0
+                            
+                            self.publisher_to_track.publish(self.person_tracked_msg)
                         
-                        # publish new message
-                        self.publisher_to_track.publish(self.person_tracked_msg)
+                    
+                        
 
             else :#if we didn't receive a signal to track the person or received the signal to stop tracking the person, we send midpoint(-1,-1) to tell tracker_node to stop sending velocity messages
                 self.person_tracked_msg = PersonTracked()
                 self.person_tracked_msg.middle_point.x = -1.0
                 self.person_tracked_msg.middle_point.y = -1.0
                 self.publisher_to_track.publish(self.person_tracked_msg)
+                self.get_logger().info(f"\n Not tracking. Publishing a (-1,-1) midpoint")
 
     def find_bounding_box_of_pilot_person(self)->None:
         """Finds the bounding box of the pilot person
@@ -237,8 +242,6 @@ class TriggerTrackingLLM(Node):
             overlap_list = [self.overlapping_area(self.person_box,box) for box in bounding_boxes]
 
             max_overlap = max(overlap_list, default=-1)  # if the list is empty
-
-            
 
             if max_overlap == -1:
             
@@ -315,6 +318,7 @@ class TriggerTrackingLLM(Node):
             self.person_tracked_msg.middle_point = PointMsg()
             self.person_tracked_msg.bounding_box = Box()
             self.empty_midpoint_count += 1
+            self.get_logger().info(f'No Midpoint update. Publishing empty midpoint') 
             
         else:
             self.person_tracked_msg.middle_point = copy(self.person_tracked_midpoint)#self.denormalize()
@@ -343,8 +347,8 @@ class TriggerTrackingLLM(Node):
 
         """
         if isinstance(box1,Box) and isinstance(box2,Box):
-            dx = max(box1.top_left.x, box2.top_left.x) - min(box1.bottom_right.x, box2.bottom_right.x)
-            dy = max(box1.top_left.y, box2.top_left.y) - min(box1.bottom_right.y, box2.bottom_right.y)
+            dx =  min(box1.bottom_right.x, box2.bottom_right.x) - max(box1.top_left.x, box2.top_left.x) 
+            dy = min(box1.bottom_right.y, box2.bottom_right.y) - max(box1.top_left.y, box2.top_left.y) 
             
         
             if dx >= 0 and dy >= 0: # if the rectangles overlap
