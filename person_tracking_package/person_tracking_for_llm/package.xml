@@ -17,6 +17,7 @@
   <exec_depend>sensor_msgs</exec_depend>
   <exec_depend>cv_bridge</exec_depend>
   <exec_depend>person_tracked</exec_depend>
+  <exec_depend>person_tracking_msgs</exec_depend>
   <exec_depend>ros2launch</exec_depend>
 
 

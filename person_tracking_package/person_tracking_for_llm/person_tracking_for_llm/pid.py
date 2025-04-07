@@ -37,4 +37,11 @@ class PID():
         correction = max(self.min_boundary, min(self.max_boundary,self.kp * self.error + self.ki * self.integral_error + self.kd * self.derivative_error))
         return correction
     
+    def reset(self)->None:
+        self.prev_error = 0
+        self.integral_error = 0
+        self.derivative_error = 0
+        self.error = 0
+
+    
  
