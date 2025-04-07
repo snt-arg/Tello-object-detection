@@ -14,10 +14,10 @@ from cv_bridge import CvBridge
 #To draw rectangles
 import cv2 
 
-#Node base to be able to integrate our project to the Behaviour tree
-from plugin_server_base.plugin_base import PluginBase, NodeState
 
-class DrawTarget(PluginBase):
+from copy import copy
+
+class DrawTarget(Node):
 
     #Topic names
     image_raw_topic = "/camera/image_raw"
@@ -30,7 +30,10 @@ class DrawTarget(PluginBase):
 
     #publishers
     publisher_drawing = None
-    timer_1 = None
+    timer = None
+
+    #publishing rate
+    publishing_rate = 0.03 # 30 hertz
     
     def __init__(self,name):
 
@@ -59,6 +62,8 @@ class DrawTarget(PluginBase):
         self.image_height = None
         self.image_width = None
 
+        
+
          
         
     def _init_parameters(self)->None:
@@ -67,6 +72,7 @@ class DrawTarget(PluginBase):
         self.declare_parameter("image_raw_topic",self.image_raw_topic) 
         self.declare_parameter("person_tracked_topic",self.person_tracked_topic) 
         self.declare_parameter("drawing_person_tracked_topic", self.drawing_person_tracked_topic)
+        self.declare_parameter("publishing_rate", self.publishing_rate)
 
         self.image_raw_topic = (
         self.get_parameter("image_raw_topic").get_parameter_value().string_value
@@ -80,11 +86,15 @@ class DrawTarget(PluginBase):
         self.get_parameter("drawing_person_tracked_topic").get_parameter_value().string_value
         )
 
+        self.publishing_rate = (
+        self.get_parameter("publishing_rate").get_parameter_value().double_value
+        )
+
            
     def _init_publishers(self)->None:
         """Method to initialize publishers"""
         self.publisher_drawing = self.create_publisher(Image,self.drawing_person_tracked_topic,10)
-        #self.timer_1 = self.create_timer(0.05,self.drawing_person_tracked_callback)
+        self.timer = self.create_timer(self.publishing_rate,self.drawing_person_tracked_callback)
         
 
     def _init_subscriptions(self)->None:
@@ -108,10 +118,12 @@ class DrawTarget(PluginBase):
         """Callback function for the subscriber node (to topic /person_tracked).
         For each message received, save it in a variable for processing
         The messages contain the midpoint and coordinates of the bounding box around the target person
-        midpoint : msg.middle_point
+        midpoint : msg.midpoint
         coordinates : msg.top_left and msg.bottom_right"""
         self.get_logger().info("Target person's position received")
-        self.person_tracked_position = msg
+
+        if not self.empty_midpoint(msg.midpoint): 
+            self.person_tracked_position = msg
         
 ######################### Publisher #####################################################################################################
     def drawing_person_tracked_callback(self):
@@ -122,9 +134,11 @@ class DrawTarget(PluginBase):
 
     def draw_rectangle(self,raw_image):
         if raw_image is not None and self.person_tracked_position is not None:
-            midpoint = self.person_tracked_position.middle_point
-            if midpoint.x != 0 or midpoint.y != 0:
+            if not self.stop_tracking_signal_midpoint(self.person_tracked_position.midpoint):
+            
+                midpoint = self.person_tracked_position.midpoint
                 bounding_box = self.person_tracked_position.bounding_box
+
                 top_left_point = (round(bounding_box.top_left.x * self.image_width),round(bounding_box.top_left.y * self.image_height))
                 bottom_right_point = (round(bounding_box.bottom_right.x * self.image_width),round(bounding_box.bottom_right.y * self.image_height))
                 cv2.rectangle(raw_image,top_left_point,bottom_right_point,(86, 237, 81),2)
@@ -133,18 +147,29 @@ class DrawTarget(PluginBase):
                 cv2.circle(raw_image,circle_center,20,(166, 237, 164),-1)
                 cv2.circle(raw_image,circle_center,15,(118, 237, 114),-1)
                 cv2.circle(raw_image,circle_center,10,(86, 237, 81),-1)
+
             return raw_image
+            
         return None
     
-    def tick(self) -> NodeState:
-        """This method is a mandatory for PluginBase node. It defines what we want our node to do.
-        It gets called 20 times a second if state=RUNNING
-        Here we call callback functions to publish a detection frame and the list of bounding boxes.
-        """
-        self.drawing_person_tracked_callback()
+    def empty_midpoint(self, midpoint):
+        """Function to test if the current midpoint is empty (x==0 and y==0). 
+        Returns True if the midpoint is empty, and false else
+        Precondition : midpoint is not None and is of type PointMsg"""
+        if midpoint.x == 0 and midpoint.y == 0:
+            return True
+        else:
+            return False  
         
-        return NodeState.RUNNING
-
+    def stop_tracking_signal_midpoint(self,midpoint):
+        """Function to test if the midpoint is (-1 ,-1). 
+        Returns True if the midpoint is (-1,-1), and false else
+        Precondition : midpoint is not None and is of type PointMsg"""
+        if midpoint.x == -1 and midpoint.y == -1:
+            return True
+        else:
+            return False 
+    
            
 ###################################################################################################################################       
   
@@ -155,7 +180,7 @@ def main(args=None):
     rclpy.init(args=args)
 
     #Node instantiation
-    draw_target = DrawTarget('drawing_target_person_node')
+    draw_target = DrawTarget('pilot_person_drawer_node')
 
     #Execute the callback function until the global executor is shutdown
     rclpy.spin(draw_target)

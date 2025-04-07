@@ -1,5 +1,5 @@
 # Middle of the box around the person to track (between 0 and 1)
-person_tracking_msgs/PointMsg middle_point    
+person_tracking_msgs/PointMsg midpoint    
 
 #coordinates of the bounding box containing the target person
 person_tracking_msgs/Box bounding_box

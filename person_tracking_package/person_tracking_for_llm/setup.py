@@ -1,4 +1,6 @@
 from setuptools import find_packages, setup
+import os
+from glob import glob
 
 package_name = 'person_tracking_for_llm'
 
@@ -10,6 +12,8 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
+        (os.path.join('share', package_name, 'launch'), glob(os.path.join('launch', '*launch.py'))),
+        (os.path.join("share", package_name, "config"),glob("config/*"),),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -24,6 +28,8 @@ setup(
             'pilot_person_selector_llm_node = person_tracking_for_llm.tracking_trigger:main',
             'person_tracker_llm_node = person_tracking_for_llm.track_person:main',
             'pilot_person_drawer_llm_node = person_tracking_for_llm.drawing_target_person:main',
+            'video_interface_node = person_tracking_for_llm.video_interface:main',
+            'landmarks_filter_node = person_tracking_for_llm.landmarks_filter:main',
             'test_llm = person_tracking_for_llm.publish_test:main'
         ],
     },

@@ -23,13 +23,17 @@ class DrawTarget(Node):
     image_raw_topic = "/camera/image_raw"
     person_tracked_topic = "/person_tracked" 
     drawing_person_tracked_topic = "/drawing_person_tracked"
+    image_annotated_hands_topic = "/hand/annotated/image"
+    drawing_person_tracked_and_hands_topic = "/person_tracked/drawing_and_hands"
 
     #subscribers
     sub_image_raw = None
     sub_person_tracked = None
+    sub_annotated_hands = None
 
     #publishers
     publisher_drawing = None
+    publisher_drawing_and_hands = None
     timer = None
 
     #publishing rate
@@ -58,12 +62,13 @@ class DrawTarget(Node):
         #Variable to contain the image received from the drone
         self.image = None
 
+        self.image_annotated_hands = None
+
         #Dimensions of the image
         self.image_height = None
         self.image_width = None
 
-        # variable to contain the previous NON-EMPTY position of the person tracked
-        self.previous_person_tracked_position = None
+        
 
          
         
@@ -73,6 +78,8 @@ class DrawTarget(Node):
         self.declare_parameter("image_raw_topic",self.image_raw_topic) 
         self.declare_parameter("person_tracked_topic",self.person_tracked_topic) 
         self.declare_parameter("drawing_person_tracked_topic", self.drawing_person_tracked_topic)
+        self.declare_parameter("image_annotated_hands_topic", self.image_annotated_hands_topic) 
+        self.declare_parameter("drawing_person_tracked_and_hands_topic", self.drawing_person_tracked_and_hands_topic)
         self.declare_parameter("publishing_rate", self.publishing_rate)
 
         self.image_raw_topic = (
@@ -86,6 +93,12 @@ class DrawTarget(Node):
         self.drawing_person_tracked_topic  = (
         self.get_parameter("drawing_person_tracked_topic").get_parameter_value().string_value
         )
+        self.image_annotated_hands_topic  = (
+        self.get_parameter("image_annotated_hands_topic").get_parameter_value().string_value
+        )
+        self.drawing_person_tracked_and_hands_topic  = (
+        self.get_parameter("drawing_person_tracked_and_hands_topic").get_parameter_value().string_value
+        )
 
         self.publishing_rate = (
         self.get_parameter("publishing_rate").get_parameter_value().double_value
@@ -95,6 +108,7 @@ class DrawTarget(Node):
     def _init_publishers(self)->None:
         """Method to initialize publishers"""
         self.publisher_drawing = self.create_publisher(Image,self.drawing_person_tracked_topic,10)
+        self.publisher_drawing_and_hands = self.create_publisher(Image,self.drawing_person_tracked_and_hands_topic,10)
         self.timer = self.create_timer(self.publishing_rate,self.drawing_person_tracked_callback)
         
 
@@ -102,6 +116,7 @@ class DrawTarget(Node):
         """Method to initialize subscriptions"""
         self.sub_image_raw = self.create_subscription(Image,self.image_raw_topic,self.image_raw_listener_callback,5)
         self.sub_person_tracked = self.create_subscription(PersonTracked, self.person_tracked_topic, self.person_tracked_listener_callback,5)
+        self.sub_annotated_hands = self.create_subscription(Image,self.image_annotated_hands_topic, self.image_annotated_hands_callback,5)
 
 ########################### First Subscriber ###########################################################################################  
 # 
@@ -119,34 +134,39 @@ class DrawTarget(Node):
         """Callback function for the subscriber node (to topic /person_tracked).
         For each message received, save it in a variable for processing
         The messages contain the midpoint and coordinates of the bounding box around the target person
-        midpoint : msg.middle_point
+        midpoint : msg.midpoint
         coordinates : msg.top_left and msg.bottom_right"""
         self.get_logger().info("Target person's position received")
 
-        if not self.empty_midpoint(msg.middle_point): 
-            self.previous_person_tracked_position = copy(self.person_tracked_position)
+        if not self.empty_midpoint(msg.midpoint): 
+            self.person_tracked_position = msg
 
-        self.person_tracked_position = msg
+    def image_annotated_hands_callback(self,img_msg):
+         
+        """Callback function for the subscriber node (to topic "/hand/annotated/image").
+        For each image frame, save it in a variable for processing"""
+        self.get_logger().info('Annotated hands images received')
+        self.image_annotated_hands = self.cv_bridge.imgmsg_to_cv2(img_msg ,'rgb8')
+
         
 ######################### Publisher #####################################################################################################
     def drawing_person_tracked_callback(self):
         """This methods is the callback functio for the publisher of images where ONLY the target person is highlighted."""
         image_drawn = self.draw_rectangle(self.image)
+        image_drawn_and_hands = self.draw_rectangle(self.image_annotated_hands)
         if image_drawn is not None:
             self.publisher_drawing.publish(self.cv_bridge.cv2_to_imgmsg(image_drawn,'rgb8'))
+        
+        if image_drawn_and_hands is not None:
+            self.publisher_drawing_and_hands.publish(self.cv_bridge.cv2_to_imgmsg(image_drawn_and_hands,'rgb8'))
 
     def draw_rectangle(self,raw_image):
         if raw_image is not None and self.person_tracked_position is not None:
-            if not self.stop_tracking_signal_midpoint(self.person_tracked_position.middle_point):
+            if not self.stop_tracking_signal_midpoint(self.person_tracked_position.midpoint):
             
-                if self.empty_midpoint(midpoint):
-                    midpoint = self.previous_person_tracked_position.middle_point
-                    bounding_box = self.previous_person_tracked_position.bounding_box
-                else:
-                    midpoint = self.person_tracked_position.middle_point
-                    bounding_box = self.person_tracked_position.bounding_box
+                midpoint = self.person_tracked_position.midpoint
+                bounding_box = self.person_tracked_position.bounding_box
 
-                
                 top_left_point = (round(bounding_box.top_left.x * self.image_width),round(bounding_box.top_left.y * self.image_height))
                 bottom_right_point = (round(bounding_box.bottom_right.x * self.image_width),round(bounding_box.bottom_right.y * self.image_height))
                 cv2.rectangle(raw_image,top_left_point,bottom_right_point,(86, 237, 81),2)
@@ -188,7 +208,7 @@ def main(args=None):
     rclpy.init(args=args)
 
     #Node instantiation
-    draw_target = DrawTarget('drawing_target_person_node')
+    draw_target = DrawTarget('pilot_person_drawer_llm_node')
 
     #Execute the callback function until the global executor is shutdown
     rclpy.spin(draw_target)
