@@ -163,7 +163,7 @@ Current improvement prospects are related to the person tracking package.
 - Speed of the plugin:\
   At its current state, while running the package one might experience lagging and a delayed processing of the frames. This inevitably makes the tracking impossible. An important improvement prospect for this package is to optimize the efficiency of the package.
   
-- Keeping a certain distance from the target:\ ✅
+- Keeping a certain distance from the target:✅\ 
   For now, the package involves lateral movement and rotation of the drone to keep the target person within the field of view of the drone's camera. Hence, the next step is to keep the distance between the drone and the target within a certain range, for better and effective tracking.
   
 - Safety of the drone and the people around:\
