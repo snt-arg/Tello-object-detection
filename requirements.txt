@@ -1,7 +1,7 @@
 click==8.1.7                    
 oauthlib==3.2.2                    
 opencv-python==4.9.0.80                 
-pillow==9.0.0                    
+pillow==10.3.0                    
 pip==23.3             
 python==3.8.18           
 python-dateutil==2.9.0.post0      
