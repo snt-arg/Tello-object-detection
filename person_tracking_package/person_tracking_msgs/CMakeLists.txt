@@ -9,7 +9,6 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 rosidl_generate_interfaces(${PROJECT_NAME}
-  "msg/PersonTracked.msg"
   "msg/AllBoundingBoxes.msg"
   "msg/Box.msg"
   "msg/PointMsg.msg"
