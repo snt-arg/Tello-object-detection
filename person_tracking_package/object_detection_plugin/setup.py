@@ -26,6 +26,7 @@ setup(
     entry_points={
         'console_scripts': [
             'object_detection_node = object_detection_plugin.object_detection_node:main',
+            'test = object_detection_plugin.test:main',
             
         ],
     },

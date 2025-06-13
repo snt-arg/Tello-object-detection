@@ -18,15 +18,15 @@ from person_tracking_msgs.msg import AllBoundingBoxes
 import json
 
     # node base for behaviour tree
-from plugin_server_base.plugin_base import PluginBase, NodeState
-
+from plugin_base.plugin_base import PluginNode, NodeState
 
     # custom helper functions
 from person_tracking_helpers.helpers import assign_objects_to_persons, construct_JSON_string
 
+from typing import Optional, Any
 
 
-class PersonObjectAssociation(PluginBase):
+class PersonObjectAssociation(PluginNode):
     person_classes = ["person"] # person class names
     objects = ["cell phone"] # list of objects 
 
@@ -171,7 +171,7 @@ class PersonObjectAssociation(PluginBase):
 
 
 
-    def tick(self) -> NodeState:
+    def tick(self,blackboard: Optional[dict["str", Any]] = None) -> NodeState:
         """This method is a mandatory for PluginBase node. It defines what we want our node to do.
         It gets called 20 times a second if state=RUNNING
         Here we call callback functions to publish a detection frame and the list of bounding boxes.

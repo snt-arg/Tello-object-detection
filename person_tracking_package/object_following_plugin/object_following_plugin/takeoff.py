@@ -1,16 +1,13 @@
 # for handling ROS node
 import rclpy
-
+from rclpy.node import Node
 
 # ROS Twist message import. This message type is used to send commands to the drone.
 from std_msgs.msg import String,Empty
 
 
-from plugin_server_base.plugin_base import PluginBase, NodeState
 
-##NB : all directions : left, right... are from the drone's perspective
-
-class TakeoffTello(PluginBase):
+class TakeoffTello(Node):
 
     
     #publishers
@@ -75,18 +72,6 @@ class TakeoffTello(PluginBase):
             self.publisher_commands.publish(Empty())
             self.get_logger().info("Takeoff command sent")
         
-                      
- 
-    
-    def tick(self):
-        """This method is a mandatory for PluginBase node. It defines what we want our node to do.
-        It gets called 20 times a second if state=RUNNING
-        Here we call callback functions to publish a detection frame and the list of bounding boxes.
-        """
-       
-        return NodeState.RUNNING
-        
-
 
     
 ###################################################################################################################################       

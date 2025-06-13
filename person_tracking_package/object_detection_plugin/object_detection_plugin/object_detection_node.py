@@ -19,7 +19,8 @@ from cv_bridge import CvBridge
 
 
     # node base for behaviour tree
-from plugin_server_base.plugin_base import PluginBase, NodeState
+from plugin_base.plugin_base import PluginNode, NodeState
+from typing import Optional, Any
 
 
     # YOLOv8 object detection framework
@@ -31,7 +32,7 @@ import torch
     
 
 
-class ObjectDetector(PluginBase):
+class ObjectDetector(PluginNode):
 
     # object detection model
     model_type = 'yolo'
@@ -50,7 +51,7 @@ class ObjectDetector(PluginBase):
 
     
     #Variable to perform object detection on only some frames
-    process_frames = 4
+    process_frames = 10
 
     # topic names
     image_raw_topic = "/camera/image_raw" #raw image frames from the drone's camera
@@ -293,15 +294,19 @@ class ObjectDetector(PluginBase):
         return box_msg
 
 
-    def tick(self) -> NodeState:
+    def tick(self, blackboard: Optional[dict["str", Any]] = None) -> NodeState:
         """This method is a mandatory for PluginBase node. It defines what we want our node to do.
         It gets called 20 times a second if state=RUNNING
         Here we call callback functions to publish a detection frame and the list of bounding boxes.
         """
+        print("\nTicking.....\n")
+        print("\nTicking.....\n")
+        print("\nTicking.....\n")
+
         self.all_detected_callback()
         self.bounding_boxes_callback()
         
-        return NodeState.RUNNING
+        return NodeState.SUCCESS
 
 
 def main(args=None):
@@ -309,7 +314,7 @@ def main(args=None):
     rclpy.init(args=args)
 
     #Node instantiation
-    detector = ObjectDetector('Object_detector_node')
+    detector = ObjectDetector('object_detector_node')
 
     #execute the callback function until the global executor is shutdown
     rclpy.spin(detector)
