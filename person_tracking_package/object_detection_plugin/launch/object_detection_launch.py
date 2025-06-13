@@ -19,20 +19,14 @@ def generate_launch_description():
     object_detection_node = Node(
             package='object_detection_plugin',
             executable='object_detection_node',
-            parameters=[param_file],
-            prefix='gnome-terminal --',
-        )
-    associator_node = Node(
-            package='object_detection_plugin',
-            executable='associator_node',
-            parameters=[param_file],
-            prefix='gnome-terminal --',
-        )
+            parameters=[param_file],)
+            #prefix='gnome-terminal --',)
+ 
             
     ld = LaunchDescription()
     ld.add_action(parameters)
     ld.add_action(object_detection_node)
-    ld.add_action(associator_node)
+    
    
 
     return ld

@@ -11,13 +11,15 @@ from std_msgs.msg import Bool
 from person_tracking_msgs.msg import Box, AllBoundingBoxes
 
 
-from plugin_server_base.plugin_base import PluginBase, NodeState
+from plugin_base.plugin_base import PluginNode, NodeState
 from person_tracking_helpers.helpers import calculate_box_size, calculate_midpoint_box, extract_point_msg
 
+from copy import copy
+from typing import Optional, Any
 
 ##NB : all directions : left, right... are from the drone's perspective
 
-class CollisionAvoiding(PluginBase):
+class CollisionAvoiding(PluginNode):
 
   
     person_tracked_topic = "/person_tracked" # carries the position of the tracked person (midpoint and box)
@@ -64,6 +66,10 @@ class CollisionAvoiding(PluginBase):
         self.boxes = None
 
         self.tracking = False
+
+        # if True, then we avoid collision. If False, we just publish the following comands with no modification.
+        self.avoid_collision = False # boolean variable to decide whether we should avoid collision or just send the commands messages.
+
 
 
         
@@ -138,14 +144,14 @@ class CollisionAvoiding(PluginBase):
     def all_bounding_boxes_callback(self, boxes_msg):
         """Callback function for the subscriber node (to topic /all_bounding_boxes).
         Receives the list of all bounding boxes surrounding all detected persons and objects"""
-        self.get_logger().info("All bounding boxes received")
+        self.get_logger().debug("All bounding boxes received")
         self.boxes = boxes_msg
         
 
     def following_commands_callback(self, msg):
         """Callback function for the subscriber node (to topic /following_commands).
         Receives the commands to follow the tracked person"""
-        self.get_logger().info("Following commands received")
+        self.get_logger().debug("Following commands received")
         self.following_commands = msg
        
            
@@ -154,13 +160,22 @@ class CollisionAvoiding(PluginBase):
     def commands_callback(self):
         """"""
         self.commands_msg = Twist()
-        self.commands_msg = self.compute_drone_vector()
+        
+        if self.avoid_collision:
+            self.commands_msg = self.compute_drone_vector()
+           
+        else:
+            self.commands_msg = copy(self.following_commands)
+        
         if self.commands_msg is not None:
             self.publisher_commands.publish(self.commands_msg)    
+            self.get_logger().info(f"Publishing commands on {self.commands_topic} : {self.commands_msg}")
+        self.get_logger().info(f"\nCollision commands: {self.commands_msg}\n following:{self.following_commands}")
+
 
     def compute_drone_vector(self):
         """Function to compute the drone's vector based on the pilot's position and the following commands and the obstacles"""
-        self.get_logger().info("Computing drone vector")
+        self.get_logger().debug("Computing drone vector")
         vectors = []
         sum_vectors_x = None
         image_center = 0.5 # because all coordinates are normalized in scale [1,1]
@@ -219,14 +234,16 @@ class CollisionAvoiding(PluginBase):
 
     
 ###################################################################################################################################       
-    def tick(self):
+    def tick(self,blackboard: Optional[dict["str", Any]] = None):
         """This method is a mandatory for PluginBase node. It defines what we want our node to do.
         It gets called 20 times a second if state=RUNNING
         Here we call callback functions to publish a detection frame and the list of bounding boxes.
         """
+        print("Ticked\nTicked\nTicked.....\n")
        
         self.commands_callback()
             
+        return NodeState.SUCCESS
 
 
 
@@ -234,7 +251,7 @@ class CollisionAvoiding(PluginBase):
 def main(args=None):
     #Intialization ROS communication 
     rclpy.init(args=args)
-    collision_avoiding = CollisionAvoiding('collision_avoiding_node')
+    collision_avoiding = CollisionAvoiding('collision_avoidance_node')
 
     #execute the callback function until the global executor is shutdown
     rclpy.spin(collision_avoiding)

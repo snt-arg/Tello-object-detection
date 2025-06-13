@@ -9,19 +9,25 @@ from std_msgs.msg import String, Bool
 from person_tracking_msgs.msg import AllBoundingBoxes, Box
 
 
-from plugin_server_base.plugin_base import PluginBase, NodeState
+from plugin_base.plugin_base import PluginNode, NodeState
 
 from collections import deque
 
 from copy import copy
 
+from typing import Optional, Any
+
 import json
+
+from math import pi
+
+import py_trees
 
 from person_tracking_helpers.helpers import equal_box_msg, overlapping_area, calculate_midpoint_box, convert_landmarks_to_box, equal_allBoundingBoxes_msg
 
              
 ###################################################################################################################################       
-class Tracker(PluginBase):
+class Tracker(PluginNode):
 
     # topic names
     pilot_topic = "/person_tracked"
@@ -32,7 +38,7 @@ class Tracker(PluginBase):
 
 
     # amount of (0,0) midpoints to receive before concluding that the person is lost.  
-    max_no_update_before_lost = 30
+    max_no_update_before_lost = 15
 
     max_length_midpoint_queue = 2
 
@@ -49,6 +55,10 @@ class Tracker(PluginBase):
 
     target_class = "person"
     min_overlap = 0.09
+
+    rotation_speed = pi/3
+    rotation_angle = pi/3
+
 
 
     
@@ -86,11 +96,15 @@ class Tracker(PluginBase):
         #Queue to keep the last nonempty midpoints. Help to calculate the trajectory of the person before he got lost
         self.midpoint_queue = deque(maxlen=self.max_length_midpoint_queue)
 
-        self.trajectory_person_lost = None
+    
 
         ### test
         #self.i = 0
         ### end test
+
+        ##test 2
+        self.test_counter_rotation = 0
+        ## end tst 2
         
                 
     def _init_parameters(self)->None:
@@ -150,13 +164,13 @@ class Tracker(PluginBase):
         """Callback function for the subscriber node (to topic /all_bounding_boxes).
         For each bounding box received, save it in a variable for processing"""
 
-        self.get_logger().info('\nBounding boxes message received')
+        self.get_logger().debug('\nBounding boxes message received')
         if self.person_lost():
             if equal_allBoundingBoxes_msg(self.boxes, boxes_msg): # if the boxes are not updated
-                self.get_logger().info(f"\nBoxes not updated!\n")
+                self.get_logger().debug(f"\nBoxes not updated!\n")
 
             else:
-                self.get_logger().info(f"\n#Boxes updated!#\n")
+                self.get_logger().debug(f"\n#Boxes updated!#\n")
                 self.boxes = boxes_msg
                 if self.boxes.bounding_boxes != []:
                     self.pilot_box = self.boxes.bounding_boxes[0]
@@ -164,10 +178,10 @@ class Tracker(PluginBase):
                     self.no_update_count = 0
                     self.get_logger().info(f"\n#######################\nAfter loosing the target, we started tracking a new person\n#######################\n")
                 else:
-                    self.get_logger().info(f"\nEmpty list of bounding boxes\n")
+                    self.get_logger().debug(f"\nEmpty list of bounding boxes\n")
 
         else:
-            self.get_logger().info(f"\n#Boxes updated!#\n")
+            self.get_logger().debug(f"\n#Boxes updated!#\n")
             self.boxes = boxes_msg
         
             ### test to track someone without the llm and the hand gesture plugin
@@ -206,9 +220,10 @@ class Tracker(PluginBase):
             if self.tracking == False and infodict["action"] == "tracking":
                 bottom_right = infodict["info"]["bottom_right"]
                 top_left = infodict["info"]["top_left"]
+                id = infodict["info"]["YOLO_id"]
 
                 # Search the pilot person box in our list of bounding boxes
-                self.find_pilot_llm(top_left, bottom_right)
+                self.find_pilot_llm(top_left, bottom_right,id)
 
             # if we receive a message to stop the tracking.
             elif infodict["action"] == "stop_tracking":
@@ -220,7 +235,7 @@ class Tracker(PluginBase):
 
 
     
-    def find_pilot_llm(self,top_left_coordinates, bottom_right_coordinates):
+    def find_pilot_llm(self,top_left_coordinates, bottom_right_coordinates, id):
         """Method to find the pilot in the list of bounding boxes"""
         max_overlap_encountered = -1
         best_box = None
@@ -239,7 +254,14 @@ class Tracker(PluginBase):
             for box in self.boxes.bounding_boxes:
                 if box.box_class == self.target_class:
                     overlap = overlapping_area(potential_pilot, box, self.overlapping_method)
-                    if overlap > max_overlap_encountered and overlap >= self.min_overlap:
+                    if id != -1 and id == box.box_id:
+                        self.tracking = True
+                        self.pilot_box = copy(box)
+                        self.midpoint_queue.append(self.pilot_box)
+                        self.get_logger().info(f"\nBased on ID , Started tracking {self.pilot_box}\n")
+                        return
+
+                    elif overlap > max_overlap_encountered and overlap >= self.min_overlap:
                         max_overlap_encountered = overlap
                         best_box = copy(box)
             
@@ -249,9 +271,9 @@ class Tracker(PluginBase):
                 self.tracking = True
                 self.pilot_box = copy(best_box)
                 self.midpoint_queue.append(self.pilot_box)
-                self.get_logger().info(f"\nStarted tracking {self.pilot_box}\n")
+                self.get_logger().info(f"\Based on overlap, Started tracking {self.pilot_box}\n")
         else:
-            self.get_logger().info(f"\nDidn't received the list of bounding boxes yet\n")
+            self.get_logger().debug(f"\nDidn't received the list of bounding boxes yet\n")
 
 
 
@@ -294,9 +316,9 @@ class Tracker(PluginBase):
             for box in self.boxes.bounding_boxes:
                 if box.box_class == "person":
                     overlap = overlapping_area(hands_box, box, self.overlapping_method)
-                    print(f"hand_box={hands_box}")
-                    print(f"box={box}")
-                    print(f"overlap = {overlap}")
+                    self.get_logger().debug(f"hand_box={hands_box}")
+                    self.get_logger().debug(f"box={box}")
+                    self.get_logger().debug(f"overlap = {overlap}")
                     if overlap > max_overlap_encountered:
                         max_overlap_encountered = overlap
                         best_box = box
@@ -309,7 +331,7 @@ class Tracker(PluginBase):
                 self.midpoint_queue.append(self.pilot_box)
                 self.get_logger().info(f"\nStarted tracking\n")
         else:
-            self.get_logger().info(f"\nDidn't received the list of bounding boxes yet\n")
+            self.get_logger().debug(f"\nDidn't received the list of bounding boxes yet\n")
 
 
     
@@ -322,11 +344,19 @@ class Tracker(PluginBase):
         if self.pilot_box is not None:
             if self.tracking:
                 self.update_pilot_position()
-                self.publisher_pilot.publish(self.pilot_box)
+
+                if not self.person_lost():
+                    self.publisher_pilot.publish(self.pilot_box)
+                else:
+                    
+                    self.tracking = False
+                    self.pilot_box = Box()
+                    self.get_logger().info(f"\n#####\n#####\nWe lost the pilot person !! Tracking stopped\n#####\n#####\n")
+
             else :
-                self.get_logger().info("Not yet tracking for some reason. We don't publish the position of the pilot")
+                self.get_logger().debug("Not yet tracking for some reason. We don't publish the position of the pilot")
         else:
-            self.get_logger().info("Pilot box is None")
+            self.get_logger().debug("Pilot box is None")
         
     def update_pilot_position(self):
         """Method to update the position of the pilot based on the previous position and the current list of bounding boxes"""
@@ -334,33 +364,34 @@ class Tracker(PluginBase):
         best_box = None
 
         if self.boxes is not None:
-            if not self.person_lost():
-                if self.pilot_box is not None:
-                    for box in self.boxes.bounding_boxes:
-                        overlap = overlapping_area(self.pilot_box, box, self.overlapping_method)
-                        if overlap > max_overlap_encountered:
-                            max_overlap_encountered = overlap
-                            best_box = copy(box)
-                
-                    if max_overlap_encountered == -1:
-                        self.get_logger().info(f"\nNo update. Didn't find the pilot in the list of bounding boxes. Maybe the person is lost\n")
-                        self.no_update_count += 1
-                    elif equal_box_msg(self.pilot_box, best_box):
-                        self.no_update_count += 1
-                        self.get_logger().info(f"\nNo update. the pilot's position didn't change\n")
-                    else:
-                        self.pilot_box = best_box
+            if self.pilot_box is not None:
+                for box in self.boxes.bounding_boxes:
+                    overlap = overlapping_area(self.pilot_box, box, self.overlapping_method)
+                    if self.pilot_box.box_id != -1 and box.box_id == self.pilot_box.box_id:
+                        self.pilot_box = box
                         self.no_update_count = 0
                         self.midpoint_queue.append(self.pilot_box)
-                        self.get_logger().info(f"\nUpdated pilot's position to {self.pilot_box}\n")
-                        
-            else:
-                self.tracking = False
-                self.pilot_box = Box()
-                self.get_logger().info(f"\n#####\n#####\nWe lost the pilot person !! Tracking stopped\n#####\n#####\n")
+                        self.get_logger().info(f"\nWith ID, updated pilot's position to {self.pilot_box}\n")
+                        return
 
+                    elif overlap > max_overlap_encountered and box.box_class == self.pilot_box.box_class:
+                        max_overlap_encountered = overlap
+                        best_box = copy(box)
+            
+                if max_overlap_encountered == -1:
+                    self.get_logger().debug(f"\nNo update. Didn't find the pilot in the list of bounding boxes. Maybe the person is lost\n")
+                    self.no_update_count += 1
+                elif equal_box_msg(self.pilot_box, best_box):
+                    self.no_update_count += 1
+                    self.get_logger().info(f"\nNo update. the pilot's position didn't change\n")
+                else:
+                    self.pilot_box = best_box
+                    self.no_update_count = 0
+                    self.midpoint_queue.append(self.pilot_box)
+                    self.get_logger().info(f"\nWith overlap, updated pilot's position to {self.pilot_box}\n")
+                    
         else:
-            self.get_logger().info(f"\nDidn't received the list of bounding boxes yet\n")
+            self.get_logger().debug(f"\nDidn't received the list of bounding boxes yet\n")
 
     def person_lost(self):
         """Function to call when someone is lost.
@@ -373,9 +404,9 @@ class Tracker(PluginBase):
     def direction_person_lost(self)->str|None:
         """Function to determine whether the drone should rotate left, right, up or down to find the lost person"""
         if len(self.midpoint_queue) == self.max_length_midpoint_queue:
-            point_1 = self.midpoint_queue[1] #most recent midpoint
-            point_2 = self.midpoint_queue[0] #previous midpoint
-            #slope = ( point_2.y - point_1.y ) / ( point_2.x - point_1.x )
+            point_1 = calculate_midpoint_box(self.midpoint_queue[1]) #most recent midpoint
+            point_2 = calculate_midpoint_box(self.midpoint_queue[0]) #previous midpoint
+            
             
             if point_1.x >= point_2.x:
                 return "right"
@@ -383,7 +414,7 @@ class Tracker(PluginBase):
                 return "left"
 
         else:
-            self.get_logger().info(f"\nNot enough midpoints received yet to predict the person's position\n")
+            self.get_logger().error(f"\nNot enough midpoints received yet to predict the person's position\n")
         
         return None
 ######################### Second Publisher #####################################################################################################
@@ -395,19 +426,73 @@ class Tracker(PluginBase):
 
     
          
-
-    def tick(self) -> NodeState:
+    
+    def tick(self, blackboard: Optional[dict["str", Any]] = None) -> NodeState:
         """This method is a mandatory for PluginBase node. It defines what we want our node to do.
         It gets called 20 times a second if state=RUNNING
         Here we call callback functions to publish a detection frame and the list of bounding boxes.
         """
-        self.pilot_callback()
-        self.tracking_status_callback()
         
-        if self.person_lost():
+        
+        ##test 2
+        self.test_counter_rotation += 1
+        rotation_direction = "left"
+
+        print("test counter :", self.test_counter_rotation)
+        
+       # if blackboard is not None:
+        #pass
+        #    print("\n","only blackboard: ",blackboard,"war","\n")
+        #    print("\n","blackboard attribute: ",blackboard["rotate_robot"],"war","\n")
+          
+        """
+        if self.test_counter_rotation > 50 and self.test_counter_rotation < 60:
+            
+            blackboard["rotate_robot"] = {"rotation_direction":rotation_direction, "rotation_angle": self.rotation_angle,  "rotation_speed" : self.rotation_speed,"total_rotated_angle":0}
+            print("Returning Failure")
+            
+            return NodeState.FAILURE
+        elif self.test_counter_rotation > 300 and self.test_counter_rotation < 500:
+            if blackboard.get("rotate_robot") is not None:
+                current_angle = blackboard["rotate_robot"]["total_rotated_angle"] + self.rotation_angle
+            else:
+                current_angle = 0
+            blackboard["rotate_robot"] = {"rotation_direction":rotation_direction, "rotation_angle": self.rotation_angle,  "rotation_speed" : self.rotation_speed,"total_rotated_angle":current_angle}
+            
+
             return NodeState.FAILURE
         else:
-            return NodeState.RUNNING
+            print("Returning success")
+            return NodeState.SUCCESS
+
+        ## end test 2
+        
+        """
+
+        self.pilot_callback()
+        self.tracking_status_callback()
+
+        if self.person_lost():
+            self.get_logger().info("Pilot person lost")
+            rotation_direction = self.direction_person_lost()
+
+            
+            if rotation_direction is not None and blackboard is not None:
+                if blackboard.get("rotate_robot") is not None:
+                    current_angle = blackboard["rotate_robot"]["total_rotated_angle"] + self.rotation_angle
+                else:
+                    current_angle = 0
+                blackboard["rotate_robot"] = {"rotation_direction":rotation_direction, "rotation_angle": self.rotation_angle,  "rotation_speed" : self.rotation_speed,"total_rotated_angle":current_angle+self.rotation_angle}
+            
+            return NodeState.FAILURE
+        else:
+                
+            return NodeState.SUCCESS
+
+    
+        
+
+    
 
 #############################################################################################################################################################
 
@@ -417,6 +502,8 @@ def main(args=None):
 
     #Node instantiation
     tracker = Tracker('pilot_person_tracker_node')
+
+    tracker.get_logger().set_level(rclpy.logging.LoggingSeverity.DEBUG)
 
     #Execute the callback function until the global executor is shutdown
     rclpy.spin(tracker)

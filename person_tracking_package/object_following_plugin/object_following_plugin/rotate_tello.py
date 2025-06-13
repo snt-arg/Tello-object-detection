@@ -5,15 +5,18 @@ import rclpy
 # ROS Twist message import. This message type is used to send commands to the drone.
 from geometry_msgs.msg import Twist
 
+from std_msgs.msg import String 
+
+from typing import Optional, Any
 
 from math import pi
 
-from person_tracking_helpers.helpers import calculate_box_size, person_lost, equal_point_msg
-from plugin_server_base.plugin_base import PluginBase, NodeState
+ # node base for behaviour tree
+from plugin_base.plugin_base import PluginNode, NodeState
 
 ##NB : all directions : left, right... are from the drone's perspective
 
-class RotateTello(PluginBase):
+class RotateTello(PluginNode):
 
     
     #publishers
@@ -23,7 +26,9 @@ class RotateTello(PluginBase):
 
     rotation_angle = pi/7 # complete rotation
 
-    rotation_direction = "left" # or right
+    rotation_direction = None # or right
+
+    rotation_direction_topic = "/rotation_direction"
 
     commands_topic = "/cmd_vel"
 
@@ -38,6 +43,9 @@ class RotateTello(PluginBase):
         
         #init publishers
         self._init_publishers()
+
+        #init subscribers
+        self._init_subscribers()
 
 
         self.commands_msg = None
@@ -78,12 +86,27 @@ class RotateTello(PluginBase):
         #publishers
         self.publisher_commands = self.create_publisher(Twist,self.commands_topic,10)
         
-                      
+    def _init_subscribers(self)->None:
+        """Method to initialize subscribers"""
+        
+        self.sub_rotation_direction = self.create_subscription(String,self.rotation_direction_topic, self.rotation_direction_callback,5)
 ######################### Publisher #####################################################################################################
     def commands_callback(self):
         self.commands_msg = Twist()
-        self.rotation(self.rotation_speed, self.rotation_angle)
-        self.rotation_complete = True
+        if self.rotation_direction == "left":
+            self.rotation(self.rotation_speed, self.rotation_angle)
+            self.rotation_complete = True
+        elif self.rotation_direction == "right":
+            self.rotation(-self.rotation_speed, -self.rotation_angle)
+            self.rotation_complete = True
+        else:
+            self.get_logger().error(f"Invalid rotation direction: {self.rotation_direction}. Rotation direction should be either 'left' or 'right'.")
+        
+
+    def rotation_direction_callback(self, msg: String):
+        """Callback funtion to receive the rotation direction (either left or right) of the lost person."""
+        self.rotation_direction = msg.data
+        self.get_logger().info(f"Rotation direction received: {self.rotation_direction}")
                       
  
     def rotation(self, angular_speed, target_angle)->None:
@@ -108,7 +131,7 @@ class RotateTello(PluginBase):
 
             self.get_logger().info(f"After rotating ,angular.z is {self.commands_msg.angular.z} and current_angle is {current_angle}")
     
-    def tick(self):
+    def tick(self,blackboard: Optional[dict["str", Any]] = None):
         """This method is a mandatory for PluginBase node. It defines what we want our node to do.
         It gets called 20 times a second if state=RUNNING
         Here we call callback functions to publish a detection frame and the list of bounding boxes.
@@ -117,7 +140,7 @@ class RotateTello(PluginBase):
             self.commands_callback()
             return NodeState.RUNNING
         else:
-            return NodeState.SUCESS
+            return NodeState.SUCCESS
 
 
     
@@ -133,8 +156,6 @@ def main(args=None):
     #execute the callback function until the global executor is shutdown
     rclpy.spin(rotate_tello)
     
-    #track_person.video.release()
-
     #destroy the node. It is not mandatory, since the garbage collection can do it
     rotate_tello.destroy_node()
     

@@ -15,7 +15,7 @@ from cv_bridge import CvBridge
 import cv2 
 
 
-from person_tracking_helpers.helpers import calculate_midpoint_box, extract_point_msg
+from person_tracking_helpers.helpers import calculate_midpoint_box
 
 class DrawTarget(Node):
 
@@ -123,7 +123,7 @@ class DrawTarget(Node):
     def image_raw_listener_callback(self, img_msg):
         """Callback function for the subscriber node (to topic /camera/image_raw).
         For each image frame, save it in a variable for processing"""
-        self.get_logger().info('Raw images received')
+        self.get_logger().debug('Raw images received')
         self.image = self.cv_bridge.imgmsg_to_cv2(img_msg ,'rgb8')
 
         #Dimensions of the image. Useful to denormalise bounding box coordinates
@@ -136,7 +136,7 @@ class DrawTarget(Node):
         The messages contain the midpoint and coordinates of the bounding box around the target person
         midpoint : msg.midpoint
         coordinates : msg.top_left and msg.bottom_right"""
-        self.get_logger().info("Target person's position received")
+        self.get_logger().debug("Target person's position received")
  
         self.pilot_box = msg
 
@@ -144,7 +144,7 @@ class DrawTarget(Node):
          
         """Callback function for the subscriber node (to topic "/hand/annotated/image").
         For each image frame, save it in a variable for processing"""
-        self.get_logger().info('Annotated hands images received')
+        self.get_logger().debug('Annotated hands images received')
         self.image_annotated_hands = self.cv_bridge.imgmsg_to_cv2(img_msg ,'rgb8')
 
         
@@ -155,9 +155,11 @@ class DrawTarget(Node):
         image_drawn_and_hands = self.draw_rectangle(self.image_annotated_hands)
         if image_drawn is not None:
             self.publisher_drawing.publish(self.cv_bridge.cv2_to_imgmsg(image_drawn,'rgb8'))
+            self.get_logger().debug("Publishing pilot person frames")
         
         if image_drawn_and_hands is not None:
             self.publisher_drawing_and_hands.publish(self.cv_bridge.cv2_to_imgmsg(image_drawn_and_hands,'rgb8'))
+            self.get_logger().debug("Publishing pilot person and hands frames")
 
     def draw_rectangle(self,raw_image):
         if raw_image is not None and self.pilot_box is not None:
@@ -190,6 +192,7 @@ def main(args=None):
 
     #Node instantiation
     draw_target = DrawTarget('pilot_person_drawer_llm_node')
+    #draw_target.get_logger().set_level(rclpy.logging.LoggingSeverity.DEBUG)
 
     #Execute the callback function until the global executor is shutdown
     rclpy.spin(draw_target)

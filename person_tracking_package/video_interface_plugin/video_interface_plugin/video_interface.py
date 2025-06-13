@@ -51,7 +51,7 @@ class VideoInterface(Node):
     drawing_person_tracked_topic = "/drawing_person_tracked" # topic for frames where the target person is outlined
     key_pressed_topic = "/key_pressed" # topic to send the key pressed on the pygame interface
     image_annotated_hands_topic = "/hand/annotated/image"
-    drawing_person_tracked_and_hands_topic = "/person_tracked/drawing_and_hands"
+    drawing_person_tracked_and_hands_topic = "/drawing_person_tracked_hands"
 
     # display mode : {raw, all, target}
     modes : dict[int,str] = {0:"raw",1:"all", 2:"target", 3:"hands", 4:"target_hands"}
@@ -167,7 +167,7 @@ class VideoInterface(Node):
         """Callback function for the subscriber node (to topic /all_detected_topic).
         For each bounding box received, save it in a variable for processing"""
 
-        self.get_logger().info('\nRaw frame received')
+        self.get_logger().debug('\nRaw frame received')
         self.image_raw = img_msg
            
        
@@ -177,7 +177,7 @@ class VideoInterface(Node):
         """Callback function for the subscriber node (to topic /drawing_person_tracked_topic).
         For each bounding box received, save it in a variable for processing"""
 
-        self.get_logger().info('\nAll detected frame received')
+        self.get_logger().debug('\nAll detected frame received')
         self.image_all_detected = img_msg
         
 
@@ -186,16 +186,16 @@ class VideoInterface(Node):
         """Callback function for the subscriber node (to topic /image_raw_topic).
         For each bounding box received, save it in a variable for processing"""
 
-        self.get_logger().info('\nTracked person frame received')
+        self.get_logger().debug('\nTracked person frame received')
         self.image_person_tracked = img_msg
         
 
     def annotated_hands_callback(self,img_msg):
-        self.get_logger().info('\nAnnotated hands frame received')
+        self.get_logger().debug('\nAnnotated hands frame received')
         self.image_annotated_hands = img_msg
 
     def person_tracked_and_hands_callback(self,img_msg):
-        self.get_logger().info('\nTracked person and annotated hands frame received')
+        self.get_logger().debug('\nTracked person and annotated hands frame received')
         self.image_person_tracked_and_hands = img_msg
 
 ######################### Publisher ####################################################################################################
@@ -220,7 +220,7 @@ class VideoInterface(Node):
 
             display_mode = 0
             self.mode = self.modes[display_mode]
-            self.get_logger().info('#####\nDisplay mode updated to :\n{self.mode}')
+            self.get_logger().info(f'#####\nDisplay mode updated to :\n{self.mode}')
             return
         
         if keys[matching_keys["1"]]:
@@ -229,7 +229,7 @@ class VideoInterface(Node):
 
             display_mode = 1
             self.mode = self.modes[display_mode]
-            self.get_logger().info('#####\nDisplay mode updated to :\n{self.mode}')
+            self.get_logger().info(f'#####\nDisplay mode updated to :\n{self.mode}')
             return
         
         if keys[matching_keys["2"]]:
@@ -238,7 +238,7 @@ class VideoInterface(Node):
 
             display_mode = 2
             self.mode = self.modes[display_mode]
-            self.get_logger().info('#####\nDisplay mode updated to :\n{self.mode}')
+            self.get_logger().info(f'#####\nDisplay mode updated to :\n{self.mode}')
             return
         
         if keys[matching_keys["3"]]:
@@ -247,7 +247,7 @@ class VideoInterface(Node):
 
             display_mode = 3
             self.mode = self.modes[display_mode]
-            self.get_logger().info('#####\nDisplay mode updated to :\n{self.mode}')
+            self.get_logger().info(f'#####\nDisplay mode updated to :\n{self.mode}')
             return
         
         if keys[matching_keys["4"]]:
@@ -256,37 +256,43 @@ class VideoInterface(Node):
 
             display_mode = 4
             self.mode = self.modes[display_mode]
-            self.get_logger().info('#####\nDisplay mode updated to :\n{self.mode}')
+            self.get_logger().info(f'#####\nDisplay mode updated to :\n{self.mode}')
             return
         
 
     def update_interface(self):
         new_frame = None
-        match self.mode:
-            case "raw":
-                new_frame = self.image_raw
+        raw_mode = self.modes.get(0,"raw")
+        all_mode = self.modes.get(1,"all")
+        target_mode = self.modes.get(2,"target")
+        hands_mode = self.modes.get(3,"hands")
+        target_hands_mode = self.modes.get(4,"target_hands")
 
-            case "all":
-                new_frame = self.image_all_detected
+        
+        if self.mode == raw_mode:
+            new_frame = self.image_raw
 
-            case "target":
-                new_frame = self.image_person_tracked
+        elif self.mode == all_mode:
+            new_frame = self.image_all_detected
 
-            case "hands":
-                new_frame = self.image_annotated_hands
+        elif self.mode == target_mode:
+            new_frame = self.image_person_tracked
 
-            case "target":
-                new_frame = self.image_person_tracked_and_hands
+        elif self.mode == hands_mode:
+            new_frame = self.image_annotated_hands
 
-            case _ :
-                self.get_logger().info('!!!!!!!!!!!\nUnknown mode!!!\n\nDisplaying target person frames.\n')
-                new_frame = self.image_person_tracked
+        elif self.mode == target_hands_mode:
+            new_frame = self.image_person_tracked_and_hands
+
+        else:
+            self.get_logger().info('!!!!!!!!!!!\nUnknown mode!!!\n\nDisplaying target person frames.\n')
+            new_frame = self.image_person_tracked
 
         if(new_frame is not None):
             self.pg_interface.update_bg_image(new_frame) # updating the image on the pygame console
             
         else:
-            self.get_logger().info('!!!!!!!!!!!\nDidn\'t receive frames for the desired mode\n')
+            self.get_logger().debug('!!!!!!!!!!!\nDidn\'t receive frames for the desired mode\n')
         self.pg_interface.tick()
 
 

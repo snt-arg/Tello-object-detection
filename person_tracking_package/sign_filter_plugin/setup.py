@@ -21,6 +21,7 @@ setup(
     entry_points={
         'console_scripts': [
             'sign_filter_node = sign_filter_plugin.sign_filter:main',
+            'tello_sign_interpreter_node = sign_filter_plugin.tello_sign_interpreter:main',
         ],
     },
 )

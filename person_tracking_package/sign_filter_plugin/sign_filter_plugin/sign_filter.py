@@ -1,17 +1,16 @@
 import rclpy
-from rclpy.node import Node
 from hand_gestures_msgs.msg import Landmarks
+from typing import Optional, Any
 from std_msgs.msg import String,Bool 
 import json
 
-from plugin_server_base.plugin_base import PluginBase, NodeState
-
+from plugin_base.plugin_base import PluginNode, NodeState
 # custom message containing the midpoint of the bounding box surrounding the tracked person
 from person_tracking_msgs.msg import  Box
 from person_tracking_helpers.helpers import extract_box_msg, extract_point_msg, convert_Landmarks_to_dict
 
 
-class LandmarkFilter(PluginBase):
+class LandmarkFilter(PluginNode):
    
     person_tracked_topic = "/person_tracked" # carries the position of the tracked person (midpoint and box)
     landmarks_topic = "/hand/landmarks"
@@ -144,21 +143,21 @@ class LandmarkFilter(PluginBase):
                 if self.check_gesture(msg,False):
                     infodict = convert_Landmarks_to_dict(msg)
                     infodict["action"] = "stop_tracking"
-                    self.publisher_tracking_signal(json.dumps(infodict))
+                    self.publisher_tracking_signal.publish(json.dumps(infodict))
 
                 if self.is_gesture_from_pilot(msg):
                     self.get_logger().info(f"\n\n\n\n\n\n##########################################\nPilot person did a gesture !! It is {msg.right_hand.gesture} and {msg.left_hand.gesture}")
                     self.publisher_landmarks_from_pilot.publish(msg)
-                    self.get_logger().info("Publishing the gestures from the pilot")
+                    self.get_logger().debug("Publishing the gestures from the pilot")
                 else:
                     self.get_logger().info("Received some landmarks but they aren't from the pilot person. Not publishing the landmarks")
 
             elif self.tracking and self.pilot_person is None:
-                self.get_logger().info("For some reason, we are tracking, but the pilot's position is not known")
+                self.get_logger().error("For some reason, we are tracking, but the pilot's position is not known")
 
             else: # here, self.tracking == False
                 self.publisher_landmarks_from_pilot.publish(msg)
-                self.get_logger().info("Publishing the landmarks as is")
+                self.get_logger().debug("Publishing the landmarks as is")
                 if self.check_gesture(msg, True):
                     infodict = convert_Landmarks_to_dict(msg)
                     infodict["action"] = "tracking"
@@ -179,7 +178,7 @@ class LandmarkFilter(PluginBase):
         
         person_tracked_left_hand_point = landmarks.left_hand.normalized_landmarks[0]
         person_tracked_right_hand_point = landmarks.right_hand.normalized_landmarks[0]
-        self.get_logger().info(f"{landmarks.right_hand.gesture} {landmarks.left_hand.gesture}")
+        self.get_logger().debug(f"{landmarks.right_hand.gesture} {landmarks.left_hand.gesture}")
 
         top_left_x , top_left_y, bottom_right_x, bottom_right_y, _, _ = extract_box_msg(self.pilot_person)
         
@@ -209,17 +208,18 @@ class LandmarkFilter(PluginBase):
         else:
             return False
 
-    def tick(self) -> NodeState:
+    def tick(self,blackboard: Optional[dict["str", Any]] = None) -> NodeState:
         """This method is a mandatory for PluginBase node. It defines what we want our node to do.
         It gets called 20 times a second if state=RUNNING
         Here we call callback functions to publish a detection frame and the list of bounding boxes.
         """
+        #print("\n\n Sign filter Ticked \n\n Sign filter Ticked \n\n Sign filter Ticked \n\n")
         
-        return NodeState.RUNNING
+        return NodeState.SUCCESS
 
 def main():
     rclpy.init()
-    node = LandmarkFilter("landmark_filter_for_pilot")
+    node = LandmarkFilter("sign_filter_node")
     rclpy.spin(node)
     node.land()
     rclpy.shutdown()
